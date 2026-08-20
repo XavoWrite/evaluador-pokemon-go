@@ -1,0 +1,1325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluador de Pokémon</title>
+<style>
+  :root {
+    --shell-rojo: #e5393d; --shell-rojo-claro: #ff6b6f; --shell-rojo-oscuro: #a81f23; --shell-borde: #7a1418;
+    --pantalla-bg: #12160f; --panel: #1a2016; --panel2: #10140d; --borde: #313b28;
+    --texto: #eef2e6; --texto-tenue: #8b9c84; --acento: #4db3f0;
+    --verde: #52c96b; --rojo: #ff6b6b; --amarillo: #f4d03f; --naranja: #f4963f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0a0b09; color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif; padding: 24px; display: flex; justify-content: center; }
+
+  .consola { width: 100%; max-width: 960px; background: linear-gradient(160deg, var(--shell-rojo-claro) 0%, var(--shell-rojo) 35%, var(--shell-rojo-oscuro) 100%); border: 3px solid var(--shell-borde); border-radius: 24px; padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.55), inset 0 2px 0 rgba(255,255,255,0.25); }
+
+  .consola-cabecera { display: flex; align-items: center; gap: 14px; padding: 8px 10px 18px; }
+  .lente { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 30%, #d8f2ff, var(--acento) 55%, #1c5f86 100%); border: 3px solid #eaf6ff; box-shadow: 0 0 0 3px #1c5f86, 0 2px 8px rgba(0,0,0,0.4); }
+  .lucecitas { display: flex; gap: 6px; margin-right: 4px; }
+  .lucecitas span { width: 9px; height: 9px; border-radius: 50%; display: block; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.3), 0 0 4px rgba(255,255,255,0.3); }
+  .luz-amarilla { background: var(--amarillo); }
+  .luz-verde { background: var(--verde); }
+  .luz-blanca { background: #f4f4f4; }
+  header { flex: 1; }
+  header h1 { font-size: 1.3rem; margin: 0 0 3px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.35); letter-spacing: 0.02em; }
+  header .sub { color: rgba(255,255,255,0.88); font-size: 0.8rem; line-height: 1.5; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+  .pantalla { background: var(--pantalla-bg); border: 7px solid #d8d6c4; border-radius: 16px; padding: 18px; box-shadow: inset 0 3px 14px rgba(0,0,0,0.65); }
+
+  #banner-carga { background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; }
+  #banner-carga.oculto { display: none; }
+  #banner-carga.error { border-color: var(--rojo); color: var(--rojo); }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--borde); border-top-color: var(--acento); border-radius: 50%; animation: girar 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .barra { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; align-items: center; }
+  button { background: #232b1c; color: var(--texto); border: 2px solid var(--borde); border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+  button:hover:not(:disabled) { border-color: var(--acento); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primario { background: var(--verde); border-color: #2f9a48; color: #05170a; }
+  .contador { color: var(--texto-tenue); font-size: 0.82rem; margin-left: auto; }
+
+  .tarjetas { display: flex; flex-direction: column; gap: 14px; }
+  .tarjeta { background: var(--panel); border: 2px solid var(--borde); border-radius: 12px; padding: 16px 18px; }
+  .tarjeta-cuerpo { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sprite-wrap { width: 132px; height: 132px; border-radius: 12px; background: var(--panel2); border: 3px solid var(--acento); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.55); }
+  .sprite-wrap img { width: 92%; height: 92%; object-fit: contain; image-rendering: pixelated; }
+  .sprite-wrap .sin-imagen { font-size: 2.8rem; opacity: 0.35; }
+  .tarjeta-datos { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 12px; }
+  .fila-superior { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+
+  .campo { display: flex; flex-direction: column; gap: 4px; }
+  .campo label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texto-tenue); }
+  .campo-especie { flex: 1; min-width: 180px; position: relative; }
+
+  input { background: var(--panel2); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); padding: 9px 10px; font-size: 0.9rem; }
+  input:focus { outline: none; border-color: var(--acento); }
+  .campo-especie input { width: 100%; }
+
+  .especie-input-wrap { position: relative; }
+  .especie-input-wrap input { padding-right: 30px; }
+  .btn-limpiar-especie { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--texto-tenue); font-size: 1rem; line-height: 1; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+  .btn-limpiar-especie:hover { color: var(--rojo); }
+
+  .lista-sugerencias { position: absolute; top: 100%; left: 0; right: 0; margin-top: 3px; background: var(--panel2); border: 1px solid var(--acento); border-radius: 8px; max-height: 240px; overflow-y: auto; z-index: 30; display: none; flex-wrap: wrap; gap: 4px; padding: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.5); }
+  .lista-sugerencias li { padding: 6px 4px; cursor: pointer; font-size: 0.72rem; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 70px; border-radius: 6px; text-align: center; }
+  .lista-sugerencias li:hover, .lista-sugerencias li.activo { background: rgba(77,179,240,0.2); }
+  .lista-sugerencias li img { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+  .lista-sugerencias li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+  .favorito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; user-select: none; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 6px; }
+  .favorito-toggle:has(input:checked) { border-color: var(--amarillo); background: rgba(244,208,63,0.1); }
+  .favorito-toggle input { width: 16px; height: 16px; accent-color: var(--amarillo); padding: 0; }
+  .shadow-toggle:has(input:checked) { border-color: #8b7fd6; background: rgba(139,127,214,0.15); }
+  .shadow-toggle input { accent-color: #8b7fd6; }
+
+  .btn-borrar { background: none; border: 1px solid var(--borde); color: var(--rojo); cursor: pointer; font-size: 1rem; padding: 8px 11px; border-radius: 6px; margin-left: auto; }
+  .btn-borrar:hover { border-color: var(--rojo); opacity: 0.85; }
+
+  .fila-ivs { display: flex; gap: 12px; flex-wrap: wrap; }
+  .campo-iv input, .campo-cp input { font-family: "Consolas", "Courier New", monospace; width: 78px; padding: 12px 8px; font-size: 1.2rem; text-align: center; font-weight: 700; background: #0b0e07; border: 2px solid var(--borde); color: #baf7c4; }
+  .campo-iv input:focus, .campo-cp input:focus { border-color: var(--acento); }
+  .campo-cp input { width: 92px; font-size: 1rem; font-weight: 400; color: var(--texto-tenue); }
+
+  .veredicto-caja { border-top: 2px dashed var(--borde); padding-top: 12px; font-size: 0.88rem; line-height: 1.7; white-space: pre-line; }
+  .veredicto-caja.cargando { color: var(--texto-tenue); font-style: italic; }
+  .veredicto-caja.error { color: var(--rojo); }
+  .veredicto-caja.vacio { color: var(--texto-tenue); }
+
+  .veredicto-caja.estado-verde   { border: none; border-top: 2px dashed var(--borde); background: rgba(82,201,107,0.10); border-left: 5px solid var(--verde); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
+  .veredicto-caja.estado-rojo    { border: none; border-top: 2px dashed var(--borde); background: rgba(255,107,107,0.08); border-left: 5px solid var(--rojo); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
+  .veredicto-caja.estado-azul    { border: none; border-top: 2px dashed var(--borde); background: rgba(77,179,240,0.10); border-left: 5px solid var(--acento); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
+  .veredicto-caja.estado-naranja { border: none; border-top: 2px dashed var(--borde); background: rgba(244,150,63,0.10); border-left: 5px solid var(--naranja); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
+
+  .veredicto-titulo { font-size: 1.2rem; font-weight: 800; margin: 0 0 4px; line-height: 1.35; }
+  .estado-verde   .veredicto-titulo { color: var(--verde); }
+  .estado-rojo    .veredicto-titulo { color: var(--rojo); }
+  .estado-azul    .veredicto-titulo { color: var(--acento); }
+  .estado-naranja .veredicto-titulo { color: var(--naranja); }
+  .veredicto-detalle { font-size: 0.82rem; color: var(--texto-tenue); white-space: pre-line; }
+  .veredicto-ideal { font-size: 0.78rem; color: var(--texto-tenue); white-space: pre-line; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borde); }
+  .veredicto-ideal b.titulo-seccion { color: #cfd9c6; }
+
+  .ayuda { margin-top: 18px; font-size: 0.78rem; color: var(--texto-tenue); line-height: 1.6; }
+  .ayuda code { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+  #estado-guardado { font-size: 0.78rem; color: var(--verde); opacity: 0; transition: opacity 0.3s; }
+  #estado-guardado.mostrar { opacity: 1; }
+
+  .tabs-nav { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn { background: var(--panel2); border: 2px solid var(--borde); border-radius: 8px 8px 0 0; padding: 9px 18px; font-size: 0.85rem; font-weight: 700; color: var(--texto-tenue); cursor: pointer; }
+  .tab-btn.activo { color: #fff; border-color: var(--acento); background: var(--panel); border-bottom: 2px solid var(--panel); margin-bottom: -2px; }
+  .tab-panel { display: none; }
+  .tab-panel.activo { display: block; }
+
+  /* --- Pestaña Guías (Incursiones + Team GO Rocket, dinámicas según tu Pokédex marcada) --- */
+  .subtab-btn { background: var(--panel2); border: 2px solid var(--borde); border-radius: 8px 8px 0 0; padding: 9px 18px; font-size: 0.85rem; font-weight: 700; color: var(--texto-tenue); cursor: pointer; }
+  .subtab-btn.activo { color: #fff; border-color: var(--acento); background: var(--panel); border-bottom: 2px solid var(--panel); margin-bottom: -2px; }
+  .subtab-panel { display: none; }
+  .subtab-panel.activo { display: block; }
+  .guia-nota { font-size: 0.78rem; color: var(--texto-tenue); line-height: 1.6; margin: 0 0 14px; }
+  .rocket-tabla { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-bottom: 8px; }
+  .rocket-tabla th { text-align: left; color: var(--texto-tenue); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 6px 8px; border-bottom: 1px solid var(--borde); }
+  .rocket-tabla td { padding: 8px; border-bottom: 1px solid var(--borde); vertical-align: top; line-height: 1.5; }
+  .rocket-tabla td:first-child { color: var(--texto-tenue); white-space: nowrap; }
+  .rocket-tabla-wrap { overflow-x: auto; }
+  .poke-mini { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; margin-right: 10px; color: #a9d98c; font-weight: 700; }
+  .poke-mini-icon { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
+
+  .pokedex-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .pokedex-barra input[type="text"] { flex: 1; min-width: 160px; }
+  .pokedex-barra select { background: var(--panel2); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); padding: 9px 10px; font-size: 0.85rem; }
+  .pokedex-barra select:focus { outline: none; border-color: var(--acento); }
+  .pokedex-resumen { font-size: 0.78rem; color: var(--texto-tenue); margin-bottom: 8px; }
+  .pokedex-resumen .num { color: #a9d98c; font-weight: 700; }
+  .pokedex-resumen-gens { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .pokedex-gen-badge { font-size: 0.72rem; padding: 4px 9px; border-radius: 20px; border: 1px solid var(--borde); color: var(--texto-tenue); background: var(--panel2); cursor: pointer; }
+  .pokedex-gen-badge:hover { border-color: var(--acento); }
+  .pokedex-gen-badge.completa { border-color: #2f9a48; color: #a9d98c; }
+  .pokedex-gen-badge.activa { border-color: var(--acento); color: #fff; background: rgba(77,179,240,0.15); }
+  .pokedex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; max-height: 640px; overflow-y: auto; padding: 4px; }
+  .pokedex-celda { background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 4px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; user-select: none; }
+  .pokedex-celda:hover { border-color: var(--acento); }
+  .pokedex-celda:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+  .pokedex-celda img { width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; }
+  .pokedex-celda .px-dex { font-size: 0.62rem; color: var(--texto-tenue); }
+  .pokedex-celda .px-nombre { font-size: 0.66rem; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pokedex-celda.fantasma { opacity: 0.28; filter: grayscale(1); }
+  .pokedex-celda.fantasma .px-nombre { color: var(--texto-tenue); }
+  .pokedex-celda.tenido { border-color: #2f9a48; }
+</style>
+</head>
+<body>
+
+<div class="consola">
+  <div class="consola-cabecera">
+    <div class="lente"></div>
+    <div class="lucecitas">
+      <span class="luz-amarilla"></span><span class="luz-verde"></span><span class="luz-blanca"></span>
+    </div>
+    <header>
+      <h1>Evaluador de Pokémon</h1>
+      <span class="sub">
+        Escribe especie + IVs de un pokémon que ya atrapaste (los datos que veas en el juego) y el veredicto
+        aparece solo -- top PvP, hundo/nundo, o nada destacado. Todo corre en este navegador, sin instalar
+        nada ni guardar ningún archivo en ningún servidor.
+      </span>
+    </header>
+  </div>
+
+  <div class="pantalla">
+    <div id="banner-carga">
+      <div class="spinner"></div>
+      <span id="texto-carga">Cargando datos de PvPoke (especies, tabla de niveles, rankings)...</span>
+    </div>
+
+    <div class="tabs-nav">
+      <button type="button" class="tab-btn activo" data-tab="evaluador">Evaluador</button>
+      <button type="button" class="tab-btn" data-tab="pokedex">📖 Pokédex</button>
+      <button type="button" class="tab-btn" data-tab="guias">📋 Guías</button>
+    </div>
+
+    <div class="tab-panel activo" id="tab-evaluador">
+      <div class="barra">
+        <button class="primario" id="btn-agregar" disabled>+ Agregar Pokémon</button>
+        <button id="btn-exportar" disabled>💾 Exportar CSV (respaldo opcional)</button>
+        <button id="btn-limpiar" disabled>🗑️ Vaciar todo</button>
+        <span id="estado-guardado">Guardado ✓</span>
+        <span class="contador" id="contador">0 pokémon</span>
+      </div>
+
+      <div class="tarjetas" id="tarjetas"></div>
+
+      <div class="ayuda">
+        <b>PC (Puntos de Combate) SÍ afecta el veredicto</b>: si el PC actual de tu ejemplar ya superó el
+        tope de una liga, esa liga se descarta de verdad (un Pokémon nunca baja de nivel, así que si ya está
+        sobre el tope no hay forma de que entre). Déjalo vacío si no lo sabes -- sin PC se evalúa el techo
+        teórico normal.<br><br>
+        El recuadro de color es el veredicto de <b>ESE ejemplar con SUS IVs</b> (el que escribiste arriba):
+        verde = apto para PvP, rojo = no apto, azul = favorito y además apto, naranja = favorito pero no apto.
+        Debajo, en gris y letra chica, aparece por separado el <b>objetivo ideal de la especie en general</b>
+        (el mejor spread posible, no siempre 15/15/15) -- eso es una referencia fija de la especie, no depende
+        de los IVs que hayas escrito.<br><br>
+        Si el ejemplar NO califica como top del meta en ninguna liga, igual te muestra en rojo
+        <b>su mejor resultado para su propia especie</b> (sin el filtro de meta), para que sepas si el IV en
+        sí es bueno aunque la especie no esté de moda. Marca <b>⭐ Favorito</b> si quieres que además se salte
+        el filtro de meta por completo y te muestre cualquier liga donde participe decentemente, aunque la
+        especie no sea top real ahora mismo.<br><br>
+        Marca <b>🌑 Shadow</b> si el ejemplar es shadow (viene de Team GO Rocket) -- el PC y el rank de IV de su
+        propia especie NO cambian (el +20% ataque y −16.7% defensa se cancelan exacto en ese cálculo), pero el
+        rank de <b>meta</b> sí puede cambiar bastante (usa el ranking shadow real de PvPoke cuando existe), y en
+        PvE pega ~20% más fuerte. <b>Purificado no necesita casilla</b>: la purificación ya te sube los IVs y el
+        nivel de una sola vez en el juego -- solo escribe los IVs/CP que veas ahora en tu Pokémon ya purificado.<br><br>
+        El "mejor nivel" que aparece en el veredicto es el <b>techo teórico</b> para ese IV -- si tu pokémon ya
+        está en un nivel más alto, no se puede bajar, es solo referencia. Esta versión evalúa PvP y Hundo/Nundo;
+        no incluye XXL/XXS ni Exhibición (eso necesita altura/peso exactos, que esta versión no pide). Los
+        datos de PvPoke se cachean 12h en este navegador para no volver a descargar ~2MB cada vez que abras
+        la página.
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-pokedex">
+      <div class="pokedex-barra">
+        <button id="btn-reiniciar-pokedex">🔄 Reiniciar</button>
+        <input type="text" id="pokedex-buscar" placeholder="Buscar especie...">
+        <select id="pokedex-gen"><option value="">Todas las generaciones</option></select>
+        <select id="pokedex-tipo"><option value="">Todos los tipos</option></select>
+        <label class="favorito-toggle"><input type="checkbox" id="pokedex-solo-obtenidos"> Ocultar los que no tengo</label>
+      </div>
+      <div class="pokedex-resumen" id="pokedex-resumen">
+        Todos empiezan en fantasma -- haz clic en cada Pokémon que ya tengas para marcarlo. Esto NO se guarda:
+        si recargas la página, se reinicia.
+      </div>
+      <div class="pokedex-resumen-gens" id="pokedex-resumen-gens"></div>
+      <div class="pokedex-grid" id="pokedex-grid"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-guias">
+      <div class="tabs-nav">
+        <button type="button" class="subtab-btn activo" data-subtab="incursiones">Incursiones</button>
+        <button type="button" class="subtab-btn" data-subtab="rocket">Team GO Rocket</button>
+      </div>
+
+      <div class="subtab-panel activo" id="subtab-incursiones">
+        <p class="guia-nota">Estas recomendaciones se arman al vuelo con lo que marcaste en tu <b>Pokédex</b>
+        (pestaña anterior) -- se asume que cada Pokémon marcado es hundo o tiene al menos 97% IV, ya que esta
+        página no guarda IVs reales. Para cada tipo de jefe se elige tu mejor atacante posible (mayor Ataque
+        base entre los que le pegan fuerte); si no tienes nada ideal para ese tipo, te mostramos el "menos peor"
+        de lo que sí marcaste.</p>
+        <div class="rocket-tabla-wrap"><table class="rocket-tabla" id="tabla-incursiones-publico">
+          <thead><tr><th>Tipo del jefe</th><th>Tu mejor atacante marcado</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+
+      <div class="subtab-panel" id="subtab-rocket">
+        <p class="guia-nota">Igual que arriba, esto usa lo que marcaste en tu <b>Pokédex</b> -- se asume hundo o al
+        menos 97% IV. La <b>frase</b> del recluta te dice el tipo antes de entrar; usa esa pista para elegir con
+        cuál de tus Pokémon marcados entrar.</p>
+        <div class="rocket-tabla-wrap"><table class="rocket-tabla" id="tabla-rocket-publico">
+          <thead><tr><th>Frase / tema</th><th>Pokémon típicos</th><th>Tu mejor opción marcada</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// Motor de evaluación PvP -- mismo método que pvpoke.com/iv/ (Stat Product
+// Rank), corre 100% en este navegador, sin servidor ni instalación.
+// =====================================================================
+
+const GAMEMASTER_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/gamemaster.json";
+const POKEMON_JS_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/js/pokemon/Pokemon.js";
+const SPRITE_URL = (dex) => `https://res.pokecoords.com/pokemon/${String(dex).padStart(4, "0")}.png`;
+const LEAGUE_URLS = {
+  little: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/little/overall/rankings-500.json",
+  great: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/all/overall/rankings-1500.json",
+  ultra: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/all/overall/rankings-2500.json",
+  master: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/all/overall/rankings-10000.json",
+  weather: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/weather/overall/rankings-1500.json",
+  evolution: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/evolution/overall/rankings-1500.json",
+  catch: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/catch/overall/rankings-1500.json",
+  scroll: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/scroll/overall/rankings-1500.json",
+  premier: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/premier/overall/rankings-10000.json",
+  mega: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/mega/overall/rankings-10000.json",
+};
+const LEAGUE_CP_CAPS = {
+  little: 500, great: 1500, ultra: 2500, master: 10000,
+  weather: 1500, evolution: 1500, catch: 1500, scroll: 1500, premier: 10000, mega: 10000,
+};
+const LEAGUE_LABEL = {
+  little: "Copa Chica", great: "Liga Super", ultra: "Liga Ultra", master: "Liga Maestra",
+  weather: "Copa del Tiempo", evolution: "Copa Evolución", catch: "Copa Captura",
+  scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Master Mega",
+};
+const IV_POTENTIAL_LEAGUES = ["little", "great", "ultra", "master", "weather", "evolution", "catch", "scroll", "premier", "mega"];
+const IV_POTENTIAL_TOP_N = 5;
+const IV_POTENTIAL_MAX_LEVEL = 50.0;
+const PVP_GLOBAL_TOP_N = {
+  little: 15, great: 55, ultra: 40, master: 25,
+  weather: 30, evolution: 30, catch: 30, scroll: 30, premier: 20, mega: 20,
+};
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+let pokemonIndex = {};
+let cpms = {};
+let rankingsPorLiga = {};
+let listaEspecies = [];  // nombres ordenados, para el autocompletar propio
+let dexPorNombre = {};  // nombre -> dex, para poner el sprite en el autocompletar
+let motorListo = false;
+
+function leerCacheLS(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return data;
+  } catch (e) { return null; }
+}
+function guardarCacheLS(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); }
+  catch (e) { /* localStorage lleno o bloqueado -- seguimos sin cachear, no es fatal */ }
+}
+
+async function fetchJsonCacheado(cacheKey, url) {
+  const cached = leerCacheLS(cacheKey);
+  if (cached) return cached;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} bajando ${url}`);
+  const data = await resp.json();
+  guardarCacheLS(cacheKey, data);
+  return data;
+}
+
+async function cargarCpms() {
+  const cacheKey = "pokealert_cpms_v1";
+  const cached = leerCacheLS(cacheKey);
+  if (cached) return cached;
+  const resp = await fetch(POKEMON_JS_URL);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} bajando Pokemon.js`);
+  const texto = await resp.text();
+  const match = texto.match(/var\s+cpms\s*=\s*\[([^\]]+)\]/);
+  if (!match) throw new Error("No se encontró el arreglo 'cpms' en Pokemon.js (¿PvPoke cambió el archivo?)");
+  const valores = match[1].split(",").map(Number);
+  const tabla = {};
+  valores.forEach((v, i) => { tabla[(1.0 + i * 0.5).toFixed(1)] = v; });
+  guardarCacheLS(cacheKey, tabla);
+  return tabla;
+}
+
+function buildPokemonIndex(gamemaster) {
+  const index = {};
+  for (const p of gamemaster.pokemon || []) {
+    const sid = p.speciesId || "";
+    if (sid.includes("_shadow") || sid.includes("_mega")) continue;
+    index[sid] = p;
+  }
+  return index;
+}
+
+async function inicializarMotor() {
+  const textoCarga = document.getElementById("texto-carga");
+  const gamemaster = await fetchJsonCacheado("pokealert_gamemaster_v1", GAMEMASTER_URL);
+  pokemonIndex = buildPokemonIndex(gamemaster);
+
+  textoCarga.textContent = "Cargando tabla de multiplicadores de nivel...";
+  cpms = await cargarCpms();
+
+  for (const liga of IV_POTENTIAL_LEAGUES) {
+    textoCarga.textContent = `Cargando ranking de ${LEAGUE_LABEL[liga]}...`;
+    const data = await fetchJsonCacheado(`pokealert_rankings_${liga}_v1`, LEAGUE_URLS[liga]);
+    rankingsPorLiga[liga] = [...data].sort((a, b) => (b.score || 0) - (a.score || 0));
+  }
+
+  const nombres = new Set();
+  for (const sid in pokemonIndex) {
+    const nombre = pokemonIndex[sid].speciesName;
+    if (nombre) {
+      nombres.add(nombre);
+      if (!dexPorNombre[nombre]) dexPorNombre[nombre] = pokemonIndex[sid].dex;
+    }
+  }
+  listaEspecies = [...nombres].sort();
+
+  motorListo = true;
+}
+
+function stripAccents(s) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function resolveSpeciesId(nombre) {
+  const key = nombre.trim().toLowerCase();
+  if (!key) return null;
+  const normalizado = stripAccents(key).replace(/ /g, "_").replace(/-/g, "_");
+  if (pokemonIndex[normalizado]) return normalizado;
+  for (const sid in pokemonIndex) {
+    const speciesName = stripAccents(pokemonIndex[sid].speciesName || "").toLowerCase();
+    if (speciesName === key) return sid;
+  }
+  return null;
+}
+
+function sugerirEspecies(prefijo) {
+  const p = prefijo.trim().toLowerCase();
+  if (!p) return [];
+  return listaEspecies.filter(n => stripAccents(n).toLowerCase().startsWith(p)).slice(0, 7);
+}
+
+function getEvolutionChain(speciesId) {
+  const chain = [];
+  const seen = new Set();
+  const pila = [speciesId];
+  while (pila.length) {
+    const sid = pila.pop();
+    if (seen.has(sid) || !pokemonIndex[sid]) continue;
+    seen.add(sid);
+    chain.push(sid);
+    const evos = (pokemonIndex[sid].family && pokemonIndex[sid].family.evolutions) || [];
+    for (const evo of evos) if (!seen.has(evo)) pila.push(evo);
+  }
+  return chain;
+}
+
+function hasPreEvolution(speciesId) {
+  for (const sid in pokemonIndex) {
+    const evos = (pokemonIndex[sid].family && pokemonIndex[sid].family.evolutions) || [];
+    if (evos.includes(speciesId)) return true;
+  }
+  return false;
+}
+
+function levelsDesc(maxLevel) {
+  const niveles = [];
+  for (let i = 0; 1.0 + i * 0.5 <= maxLevel + 1e-9; i++) niveles.push(1.0 + i * 0.5);
+  return niveles.reverse();
+}
+
+function nivelDesdeCP(atkBase, defBase, hpBase, atkIv, defIv, staIv, cpObjetivo, maxLevel) {
+  // El PC (CP) que escribiste es el de AHORA -- un Pokémon nunca baja de
+  // nivel (solo sube con caramelo), así que ese PC fija un PISO de nivel
+  // real. Busca el nivel más bajo (1.0 a maxLevel, pasos de 0.5) cuyo PC
+  // calculado ya alcance el que escribiste, con estos IVs y stats base.
+  if (!cpObjetivo || cpObjetivo <= 0) return 1.0;
+  const atk = atkBase + atkIv, def = defBase + defIv, hp = hpBase + staIv;
+  for (let i = 0; 1.0 + i * 0.5 <= maxLevel + 1e-9; i++) {
+    const lv = 1.0 + i * 0.5;
+    const cpm = cpms[lv.toFixed(1)];
+    if (cpm === undefined) continue;
+    const cp = Math.max(10, Math.floor(atk * Math.sqrt(def) * Math.sqrt(hp) * cpm * cpm / 10));
+    if (cp >= cpObjetivo) return lv;
+  }
+  return maxLevel;
+}
+
+function bestLevelCpProduct(atkBase, defBase, hpBase, atkIv, defIv, staIv, cpCap, maxLevel, minLevel) {
+  const niveles = levelsDesc(maxLevel).filter(lv => lv >= minLevel - 1e-9);
+  const atk = atkBase + atkIv, def = defBase + defIv, hp = hpBase + staIv;
+
+  for (const lv of niveles) {
+    const cpm = cpms[lv.toFixed(1)];
+    if (cpm === undefined) continue;
+    const cp = Math.max(10, Math.floor(atk * Math.sqrt(def) * Math.sqrt(hp) * cpm * cpm / 10));
+    if (cp <= cpCap) {
+      const product = (atk * cpm) * (def * cpm) * Math.floor(hp * cpm);
+      return { level: lv, cp, product };
+    }
+  }
+  if (minLevel > 1.0 + 1e-9) return null;
+
+  const todos = levelsDesc(maxLevel);
+  const lv = niveles.length ? niveles[niveles.length - 1] : todos[todos.length - 1];
+  const cpm = cpms[lv.toFixed(1)];
+  const cp = Math.max(10, Math.floor(atk * Math.sqrt(def) * Math.sqrt(hp) * cpm * cpm / 10));
+  const product = (atk * cpm) * (def * cpm) * Math.floor(hp * cpm);
+  return { level: lv, cp, product };
+}
+
+const productosCache = new Map();
+
+function datosEspecieLiga(speciesId, atkBase, defBase, hpBase, league, maxLevel, cpCap) {
+  const key = `${speciesId}|${league}|${maxLevel}`;
+  if (productosCache.has(key)) return productosCache.get(key);
+  const productos = [];
+  let mejor = null;
+  for (let a = 0; a <= 15; a++) {
+    for (let d = 0; d <= 15; d++) {
+      for (let s = 0; s <= 15; s++) {
+        const r = bestLevelCpProduct(atkBase, defBase, hpBase, a, d, s, cpCap, maxLevel, 1.0);
+        productos.push(r.product);
+        if (!mejor || r.product > mejor.product) {
+          mejor = { atk: a, def: d, hp: s, level: r.level, cp: r.cp, product: r.product };
+        }
+      }
+    }
+  }
+  productos.sort((a, b) => b - a);
+  const datos = { productos, mejor };
+  productosCache.set(key, datos);
+  return datos;
+}
+
+function mejorSpreadParaLiga(speciesId, atkBase, defBase, hpBase, league, maxLevel, cpCap) {
+  return datosEspecieLiga(speciesId, atkBase, defBase, hpBase, league, maxLevel, cpCap).mejor;
+}
+
+function ivRank(speciesId, atkBase, defBase, hpBase, atkIv, defIv, staIv, league, maxLevel, minLevel) {
+  const cpCap = LEAGUE_CP_CAPS[league];
+  const result = bestLevelCpProduct(atkBase, defBase, hpBase, atkIv, defIv, staIv, cpCap, maxLevel, minLevel ?? 1.0);
+  if (!result) return null;
+  const { level, cp, product } = result;
+  const { productos: todos } = datosEspecieLiga(speciesId, atkBase, defBase, hpBase, league, maxLevel, cpCap);
+  const best = todos.length ? todos[0] : product;
+
+  let countGreater = 0;
+  for (const p of todos) {
+    if (p > product) countGreater++;
+    else break;
+  }
+  const rank = countGreater + 1;
+  const percent = best ? Math.round((product / best) * 10000) / 100 : 0;
+  return { rank, total: todos.length, percent, level, cp, product };
+}
+
+function getSpeciesGlobalRank(speciesId, league, esShadow) {
+  // Los rankings de PvPoke (simulación de batallas real, no solo el stat
+  // product) traen entradas separadas para formas shadow (ej.
+  // "scizor_shadow" además de "scizor") -- el +20% ataque/-16.7% defensa
+  // SÍ cambia cómo le va en batallas reales, aunque el CP y el IV rank
+  // dentro de su propia especie no cambian nada (esos dos multiplicadores
+  // se cancelan exacto en ese cálculo). Si la especie no tiene versión
+  // shadow en el ranking (no todas son shadow-elegibles), cae al normal.
+  const ordenado = rankingsPorLiga[league] || [];
+  if (esShadow) {
+    const idxShadow = ordenado.findIndex(e => e.speciesId === `${speciesId}_shadow`);
+    if (idxShadow !== -1) return [idxShadow + 1, ordenado.length];
+  }
+  const idx = ordenado.findIndex(e => e.speciesId === speciesId);
+  return idx === -1 ? [null, ordenado.length] : [idx + 1, ordenado.length];
+}
+
+const SHADOW_ATK_MULT = 1.2;
+const SHADOW_DEF_MULT = 0.83333331;
+
+function previsualizarIdeal(especieNombre, esFavorito, esShadow) {
+  const speciesId = resolveSpeciesId(especieNombre);
+  if (!speciesId) return null;
+
+  const cadena = getEvolutionChain(speciesId);
+  const candidatos = [];
+
+  for (const sid of cadena) {
+    const entrada = pokemonIndex[sid];
+    if (!entrada || entrada.released === false) continue;
+    const stats = entrada.baseStats || {};
+    if (!(stats.atk && stats.def && stats.hp)) continue;
+
+    for (const liga of IV_POTENTIAL_LEAGUES) {
+      if (liga === "little" && hasPreEvolution(sid)) continue;
+      const cpCap = LEAGUE_CP_CAPS[liga];
+      const mejor = mejorSpreadParaLiga(sid, stats.atk, stats.def, stats.hp, liga, IV_POTENTIAL_MAX_LEVEL, cpCap);
+      if (!mejor) continue;
+      const [globalRank, globalTotal] = getSpeciesGlobalRank(sid, liga, esShadow);
+      const threshold = PVP_GLOBAL_TOP_N[liga] ?? 40;
+      if (!esFavorito && (globalRank === null || globalRank > threshold)) continue;
+      candidatos.push({ speciesName: entrada.speciesName || sid, league: liga, globalRank, globalTotal, ...mejor });
+    }
+  }
+  candidatos.sort((a, b) => (a.globalRank ?? 9999) - (b.globalRank ?? 9999));
+  return candidatos.slice(0, 3);
+}
+
+function formatearIdeal(especieNombre, esFavorito, esShadow) {
+  const candidatos = previsualizarIdeal(especieNombre, esFavorito, esShadow);
+  if (candidatos === null) return "";
+
+  const lineas = [`💯 Hundo: 15/15/15`];
+  candidatos.forEach((c) => {
+    const liga = LEAGUE_LABEL[c.league] || c.league;
+    const metaTxt = c.globalRank ? `Top ${c.globalRank}/${c.globalTotal} del meta` : `fuera del ranking del meta actual`;
+    lineas.push(`🎯 ${c.speciesName} en ${liga}: ${c.atk}/${c.def}/${c.hp} (PC ${c.cp}, nivel ${c.level}, ${metaTxt})`);
+  });
+  if (candidatos.length === 0) {
+    lineas.push(`(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)`);
+  }
+  return lineas.join("\n");
+}
+
+function evaluarPvPCompleto(especieNombre, atkIv, defIv, staIv, esFavorito, esShadow, cpActual) {
+  const speciesId = resolveSpeciesId(especieNombre);
+  if (!speciesId) return { error: `No reconozco "${especieNombre}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).` };
+
+  // El PC que escribiste es el de la especie TAL COMO la atrapaste (no la
+  // evolucionada) -- fija el nivel real mínimo, que no cambia al evolucionar.
+  // Si el PC ya superó el tope de una liga, esa liga queda descartada de
+  // verdad (no se puede "bajar" de nivel en el juego).
+  const statsBase = (pokemonIndex[speciesId] || {}).baseStats || {};
+  const nivelMinimo = (statsBase.atk && statsBase.def && statsBase.hp)
+    ? nivelDesdeCP(statsBase.atk, statsBase.def, statsBase.hp, atkIv, defIv, staIv, cpActual, IV_POTENTIAL_MAX_LEVEL)
+    : 1.0;
+
+  const cadena = getEvolutionChain(speciesId);
+  const todos = [];
+
+  for (const sid of cadena) {
+    const entrada = pokemonIndex[sid];
+    if (!entrada || entrada.released === false) continue;
+    const stats = entrada.baseStats || {};
+    if (!(stats.atk && stats.def && stats.hp)) continue;
+
+    for (const liga of IV_POTENTIAL_LEAGUES) {
+      if (liga === "little" && hasPreEvolution(sid)) continue;
+      const resultado = ivRank(sid, stats.atk, stats.def, stats.hp, atkIv, defIv, staIv, liga, IV_POTENTIAL_MAX_LEVEL, nivelMinimo);
+      if (!resultado) continue;
+      const [globalRank, globalTotal] = getSpeciesGlobalRank(sid, liga, esShadow);
+      todos.push({ speciesName: entrada.speciesName || sid, league: liga, globalRank, globalTotal, ...resultado });
+    }
+  }
+
+  const topMeta = todos.filter(r => {
+    if (r.rank > IV_POTENTIAL_TOP_N) return false;
+    if (esFavorito) return true;
+    const threshold = PVP_GLOBAL_TOP_N[r.league] ?? 40;
+    return r.globalRank !== null && r.globalRank <= threshold;
+  });
+  topMeta.sort((a, b) => (a.globalRank ?? 9999) - (b.globalRank ?? 9999));
+
+  let mejorPropio = null;
+  for (const r of todos) {
+    if (!mejorPropio || r.percent > mejorPropio.percent) mejorPropio = r;
+  }
+
+  return { topMeta, mejorPropio };
+}
+
+function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, esShadow, cpActual) {
+  const speciesId = resolveSpeciesId(especieNombre);
+  if (!speciesId) return { error: `No reconozco "${especieNombre}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).` };
+  const nombreBase = (pokemonIndex[speciesId] && pokemonIndex[speciesId].speciesName) || especieNombre;
+
+  const etiquetas = [];
+  if (atkIv === 15 && defIv === 15 && hpIv === 15) etiquetas.push("💯 HUNDO 100%");
+  if (atkIv === 0 && defIv === 0 && hpIv === 0) etiquetas.push("💀 NUNDO 0%");
+  if (esShadow) etiquetas.push("🌑 Shadow");
+
+  let notaShadow = "";
+  if (esShadow) {
+    const entradaBase = pokemonIndex[speciesId];
+    const stats = entradaBase && entradaBase.baseStats;
+    const elegible = entradaBase && entradaBase.tags && entradaBase.tags.includes("shadoweligible");
+    if (stats) {
+      const atkEfectivo = Math.round((stats.atk + atkIv) * SHADOW_ATK_MULT * 10) / 10;
+      const defEfectiva = Math.round((stats.def + defIv) * SHADOW_DEF_MULT * 10) / 10;
+      notaShadow = `🌑 Shadow: Ataque efectivo ~${atkEfectivo} (+20%), Defensa efectiva ~${defEfectiva} (−16.7%) en batalla real. `
+        + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan en ese cálculo); `
+        + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`
+        + (elegible === false ? ` (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- revisa si de verdad es shadow.)` : "");
+    }
+  }
+
+  const { topMeta, mejorPropio } = evaluarPvPCompleto(especieNombre, atkIv, defIv, hpIv, esFavorito, esShadow, cpActual);
+  const apto = !!(topMeta && topMeta.length);
+
+  let notaPC = "";
+  if (cpActual && cpActual > 0) {
+    const ligasSuperadas = [...new Set(IV_POTENTIAL_LEAGUES.filter(l => LEAGUE_CP_CAPS[l] < cpActual).map(l => LEAGUE_LABEL[l] || l))];
+    if (ligasSuperadas.length) {
+      notaPC = `📈 Con PC ${cpActual} ya superaste el tope de: ${ligasSuperadas.join(", ")} -- no se muestran para este ejemplar (no se puede bajar de nivel).`;
+    }
+  }
+
+  let colorClase, titulo, detalle;
+
+  if (apto) {
+    const mejor = topMeta[0];
+    const necesitaEvolucion = mejor.speciesName.toLowerCase() !== nombreBase.toLowerCase();
+    const liga = LEAGUE_LABEL[mejor.league] || mejor.league;
+    colorClase = esFavorito ? "estado-azul" : "estado-verde";
+    titulo = `✅ Apto para ${liga}` + (necesitaEvolucion ? ` -- evolucionado a ${mejor.speciesName}` : "");
+    const lineas = topMeta.slice(0, 4).map(m => {
+      const l = LEAGUE_LABEL[m.league] || m.league;
+      const evoTxt = (m.speciesName.toLowerCase() !== nombreBase.toLowerCase()) ? ` [evolucionado a ${m.speciesName}]` : "";
+      return `${l}${evoTxt}: #${m.rank}/${m.total} propio (${m.percent}%), Top ${m.globalRank ?? "?"}/${m.globalTotal} del meta -- PC ${m.cp}, Nivel ${m.level}`;
+    });
+    if (topMeta.length > 4) lineas.push(`(+${topMeta.length - 4} liga(s)/copa(s) más)`);
+    if (notaShadow) lineas.push(notaShadow);
+    if (notaPC) lineas.push(notaPC);
+    detalle = lineas.join("\n");
+  } else {
+    colorClase = esFavorito ? "estado-naranja" : "estado-rojo";
+    titulo = `❌ No apto para PvP ahora mismo`;
+    if (mejorPropio) {
+      const liga = LEAGUE_LABEL[mejorPropio.league] || mejorPropio.league;
+      const necesitaEvolucion = mejorPropio.speciesName.toLowerCase() !== nombreBase.toLowerCase();
+      const metaTxt = mejorPropio.globalRank
+        ? `especie #${mejorPropio.globalRank}/${mejorPropio.globalTotal} del meta actual`
+        : `especie fuera del ranking del meta actual`;
+      detalle = `Su mejor resultado propio: ${mejorPropio.speciesName}${necesitaEvolucion ? " (evolucionado)" : ""} en ${liga}: `
+        + `#${mejorPropio.rank}/${mejorPropio.total} propio (${mejorPropio.percent}%) -- ${metaTxt}.`;
+    } else {
+      detalle = `No se pudo evaluar ninguna liga para este ejemplar (¿especie sin datos de PvPoke?)${cpActual ? " -- revisa que el PC no sea imposible para estos IVs" : ""}.`;
+    }
+    if (notaPC) detalle += `\n${notaPC}`;
+    if (notaShadow) detalle += `\n${notaShadow}`;
+  }
+
+  return { colorClase, titulo, detalle, etiquetas, apto };
+}
+
+// =====================================================================
+// UI: tarjetas de captura + veredicto en vivo
+// =====================================================================
+
+const CLAVE_LOCALSTORAGE = "pokealert_evaluador_publico_filas_v1";
+const contenedorTarjetas = document.getElementById("tarjetas");
+const contador = document.getElementById("contador");
+const estadoGuardado = document.getElementById("estado-guardado");
+const bannerCarga = document.getElementById("banner-carga");
+const textoCarga = document.getElementById("texto-carga");
+
+let filas = [];
+let guardadoTimeout = null;
+const debounceTimers = new Map();
+
+function nuevaFila(datos = {}) {
+  return {
+    id: datos.id || `f${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
+    pokemon: datos.pokemon || "",
+    iv_atk: datos.iv_atk ?? "", iv_def: datos.iv_def ?? "", iv_hp: datos.iv_hp ?? "",
+    cp: datos.cp ?? "", favorito: datos.favorito ?? false, shadow: datos.shadow ?? false, veredicto: datos.veredicto || "",
+  };
+}
+
+function cargarLocalStorage() {
+  try {
+    const raw = localStorage.getItem(CLAVE_LOCALSTORAGE);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed.map(nuevaFila);
+    }
+  } catch (e) { /* empezamos vacío */ }
+  return [nuevaFila()];
+}
+
+function guardarLocalStorage() {
+  localStorage.setItem(CLAVE_LOCALSTORAGE, JSON.stringify(filas));
+  estadoGuardado.classList.add("mostrar");
+  clearTimeout(guardadoTimeout);
+  guardadoTimeout = setTimeout(() => estadoGuardado.classList.remove("mostrar"), 900);
+}
+
+function actualizarSprite(fila, elSprite) {
+  const speciesId = resolveSpeciesId(fila.pokemon);
+  const dex = speciesId && pokemonIndex[speciesId] ? pokemonIndex[speciesId].dex : null;
+  if (dex) {
+    elSprite.innerHTML = `<img src="${SPRITE_URL(dex)}" alt="${fila.pokemon}" onerror="this.parentElement.innerHTML='<span class=&quot;sin-imagen&quot;>❔</span>'">`;
+  } else {
+    elSprite.innerHTML = `<span class="sin-imagen">❔</span>`;
+  }
+}
+
+function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
+  actualizarSprite(fila, elSprite);
+  const especie = fila.pokemon.trim();
+  if (!especie) {
+    elVeredicto.textContent = "Completa especie + los 3 IVs...";
+    elVeredicto.className = "veredicto-caja vacio";
+    fila.veredicto = "";
+    return;
+  }
+  const atk = parseInt(fila.iv_atk, 10), def = parseInt(fila.iv_def, 10), hp = parseInt(fila.iv_hp, 10);
+  const ivsCompletos = !isNaN(atk) && !isNaN(def) && !isNaN(hp);
+
+  elVeredicto.textContent = "Evaluando...";
+  elVeredicto.className = "veredicto-caja cargando";
+
+  clearTimeout(debounceTimers.get(fila.id));
+  debounceTimers.set(fila.id, setTimeout(() => {
+    try {
+      const ideal = formatearIdeal(especie, !!fila.favorito, !!fila.shadow);
+      if (!ideal) {
+        elVeredicto.textContent = `No reconozco "${especie}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).`;
+        elVeredicto.className = "veredicto-caja error";
+        fila.veredicto = "";
+        guardarLocalStorage();
+        return;
+      }
+      const idealSinHundo = ideal.split("\n").filter(l => !l.startsWith("💯 Hundo")).join("\n");
+      const idealHtml = `<div class="veredicto-ideal"><b class="titulo-seccion">🎯 Objetivo ideal de la especie (no depende de tus IVs, solo de ⭐ Favorito / 🌑 Shadow):</b>\n${idealSinHundo || "(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)"}</div>`;
+
+      if (!ivsCompletos) {
+        elVeredicto.innerHTML = `<div class="veredicto-detalle">Completa los 3 IVs para ver el veredicto de ESTE ejemplar...</div>${idealHtml}`;
+        elVeredicto.className = "veredicto-caja vacio";
+        fila.veredicto = "";
+        guardarLocalStorage();
+        return;
+      }
+
+      const cpActual = parseInt(fila.cp, 10) || null;
+      const resultado = resolverEstadoVeredicto(especie, atk, def, hp, !!fila.favorito, !!fila.shadow, cpActual);
+      if (resultado.error) {
+        elVeredicto.textContent = resultado.error;
+        elVeredicto.className = "veredicto-caja error";
+        fila.veredicto = "";
+        guardarLocalStorage();
+        return;
+      }
+
+      const etiquetasHtml = resultado.etiquetas.length
+        ? `<div class="veredicto-etiquetas">${resultado.etiquetas.join(" &nbsp; ")}</div>` : "";
+      elVeredicto.innerHTML =
+        `<div class="veredicto-titulo">${resultado.titulo}</div>`
+        + etiquetasHtml
+        + `<div class="veredicto-detalle">${resultado.detalle}</div>`
+        + idealHtml;
+      elVeredicto.className = `veredicto-caja ${resultado.colorClase}`;
+      fila.veredicto = `${resultado.titulo}\n${resultado.detalle}\n\n${idealSinHundo}`;
+    } catch (e) {
+      elVeredicto.textContent = `Error evaluando: ${e.message}`;
+      elVeredicto.className = "veredicto-caja error";
+    }
+    guardarLocalStorage();
+  }, 500));
+}
+
+function conectarAutocompletar(inputEl, listaEl, fila, elVeredicto, elSprite) {
+  let activo = -1;
+
+  function ocultar() { listaEl.style.display = "none"; listaEl.innerHTML = ""; activo = -1; }
+
+  function refrescar() {
+    const sugerencias = sugerirEspecies(inputEl.value);
+    if (!sugerencias.length) { ocultar(); return; }
+    listaEl.innerHTML = sugerencias.map((n, i) => {
+      const dex = dexPorNombre[n];
+      const imgHtml = dex ? `<img src="${SPRITE_URL(dex)}" alt="" onerror="this.style.visibility='hidden'">` : "";
+      return `<li data-i="${i}">${imgHtml}<span>${n}</span></li>`;
+    }).join("");
+    listaEl.style.display = "flex";
+    activo = -1;
+    listaEl.querySelectorAll("li").forEach((li) => {
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        inputEl.value = li.textContent;
+        fila.pokemon = li.textContent;
+        ocultar();
+        actualizarVeredictoUI(fila, elVeredicto, elSprite);
+      });
+    });
+  }
+
+  inputEl.addEventListener("input", () => {
+    fila.pokemon = inputEl.value;
+    refrescar();
+    actualizarVeredictoUI(fila, elVeredicto, elSprite);
+  });
+  inputEl.addEventListener("keydown", (e) => {
+    const items = listaEl.querySelectorAll("li");
+    if (!items.length || listaEl.style.display === "none") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activo = Math.min(activo + 1, items.length - 1);
+      items.forEach((li, i) => li.classList.toggle("activo", i === activo));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activo = Math.max(activo - 1, 0);
+      items.forEach((li, i) => li.classList.toggle("activo", i === activo));
+    } else if (e.key === "Enter" && activo >= 0) {
+      e.preventDefault();
+      items[activo].dispatchEvent(new Event("mousedown"));
+    } else if (e.key === "Escape") {
+      ocultar();
+    }
+  });
+  inputEl.addEventListener("blur", () => setTimeout(ocultar, 150));
+}
+
+function render() {
+  contenedorTarjetas.innerHTML = "";
+  filas.forEach((fila) => {
+    const div = document.createElement("div");
+    div.className = "tarjeta";
+    div.innerHTML = `
+      <div class="tarjeta-cuerpo">
+        <div class="sprite-wrap"><span class="sin-imagen">❔</span></div>
+        <div class="tarjeta-datos">
+          <div class="fila-superior">
+            <div class="campo campo-especie">
+              <label>Especie</label>
+              <div class="especie-input-wrap">
+                <input class="especie" value="${fila.pokemon}" placeholder="ej. Umbreon" autocomplete="off">
+                <button type="button" class="btn-limpiar-especie" title="Borrar especie" style="${fila.pokemon ? "" : "display:none;"}">✕</button>
+              </div>
+              <ul class="lista-sugerencias"></ul>
+            </div>
+            <label class="favorito-toggle">
+              <input type="checkbox" class="favorito" ${fila.favorito ? "checked" : ""}> ⭐ Favorito
+            </label>
+            <label class="favorito-toggle shadow-toggle">
+              <input type="checkbox" class="shadow" ${fila.shadow ? "checked" : ""}> 🌑 Shadow
+            </label>
+            <button class="btn-borrar" title="Borrar">✕</button>
+          </div>
+          <div class="fila-ivs">
+            <div class="campo campo-iv"><label>Atk</label><input type="number" min="0" max="15" data-campo="iv_atk" value="${fila.iv_atk}"></div>
+            <div class="campo campo-iv"><label>Def</label><input type="number" min="0" max="15" data-campo="iv_def" value="${fila.iv_def}"></div>
+            <div class="campo campo-iv"><label>HP</label><input type="number" min="0" max="15" data-campo="iv_hp" value="${fila.iv_hp}"></div>
+            <div class="campo campo-cp"><label>PC (nota)</label><input type="number" data-campo="cp" value="${fila.cp}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="veredicto-caja vacio">Completa especie + los 3 IVs...</div>
+    `;
+    const elVeredicto = div.querySelector(".veredicto-caja");
+    const elSprite = div.querySelector(".sprite-wrap");
+    const elEspecie = div.querySelector("input.especie");
+    const elLista = div.querySelector(".lista-sugerencias");
+
+    conectarAutocompletar(elEspecie, elLista, fila, elVeredicto, elSprite);
+    const elLimpiarEspecie = div.querySelector(".btn-limpiar-especie");
+    elEspecie.addEventListener("input", () => {
+      elLimpiarEspecie.style.display = elEspecie.value ? "" : "none";
+    });
+    elLimpiarEspecie.addEventListener("click", () => {
+      elEspecie.value = "";
+      fila.pokemon = "";
+      elLimpiarEspecie.style.display = "none";
+      actualizarVeredictoUI(fila, elVeredicto, elSprite);
+      guardarLocalStorage();
+      elEspecie.focus();
+    });
+    div.querySelector("input.shadow").addEventListener("change", (e) => {
+      fila.shadow = e.target.checked;
+      actualizarVeredictoUI(fila, elVeredicto, elSprite);
+    });
+    div.querySelector("input.favorito").addEventListener("change", (e) => {
+      fila.favorito = e.target.checked;
+      actualizarVeredictoUI(fila, elVeredicto, elSprite);
+    });
+    div.querySelectorAll("input[data-campo]").forEach(el => {
+      el.addEventListener("input", () => {
+        fila[el.dataset.campo] = el.value;
+        actualizarVeredictoUI(fila, elVeredicto, elSprite);
+      });
+    });
+    div.querySelector(".btn-borrar").addEventListener("click", () => {
+      filas = filas.filter(f => f.id !== fila.id);
+      if (filas.length === 0) filas.push(nuevaFila());
+      guardarLocalStorage();
+      render();
+    });
+
+    contenedorTarjetas.appendChild(div);
+    actualizarSprite(fila, elSprite);
+    if (fila.pokemon.trim()) {
+      if (motorListo) actualizarVeredictoUI(fila, elVeredicto, elSprite);
+      else { elVeredicto.textContent = "Cargando motor de PvP..."; elVeredicto.className = "veredicto-caja cargando"; }
+    }
+  });
+  contador.textContent = `${filas.length} pokémon`;
+}
+
+document.getElementById("btn-agregar").addEventListener("click", () => {
+  filas.push(nuevaFila());
+  guardarLocalStorage();
+  render();
+  const inputs = contenedorTarjetas.querySelectorAll("input.especie");
+  if (inputs.length) inputs[inputs.length - 1].focus();
+});
+
+document.getElementById("btn-limpiar").addEventListener("click", () => {
+  filas = [nuevaFila()];
+  guardarLocalStorage();
+  render();
+});
+
+function csvEscape(valor) {
+  const s = String(valor ?? "");
+  return (s.includes(",") || s.includes('"') || s.includes("\n")) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+document.getElementById("btn-exportar").addEventListener("click", () => {
+  const encabezado = "Pokemon,IV_Atk,IV_Def,IV_HP,PC_Actual,Favorito,Shadow,Veredicto";
+  const filasValidas = filas.filter(f => f.pokemon.trim() !== "");
+  const lineas = filasValidas.map(f => [
+    f.pokemon, f.iv_atk, f.iv_def, f.iv_hp, f.cp, f.favorito ? "Si" : "No", f.shadow ? "Si" : "No", f.veredicto
+  ].map(csvEscape).join(","));
+  const csv = [encabezado, ...lineas].join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mis_pokemon_evaluados_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// =====================================================================
+// Pestaña Pokédex -- lista completa de especies (dex nacional), marcando
+// en color las que ya tienes y en "fantasma" (baja opacidad + gris) las
+// que no. Importa un CSV con columnas Cuenta,Dex,Especie (una fila por
+// Pokémon que TE FALTA capturar) -- la columna Cuenta se ignora acá (esta
+// versión pública no distingue cuentas, junta todo en un solo set).
+// =====================================================================
+
+// Rangos de dex nacional por generación (para el filtro y el resumen).
+const GEN_RANGES = [
+  { gen: 1, desde: 1, hasta: 151 }, { gen: 2, desde: 152, hasta: 251 },
+  { gen: 3, desde: 252, hasta: 386 }, { gen: 4, desde: 387, hasta: 493 },
+  { gen: 5, desde: 494, hasta: 649 }, { gen: 6, desde: 650, hasta: 721 },
+  { gen: 7, desde: 722, hasta: 809 }, { gen: 8, desde: 810, hasta: 905 },
+  { gen: 9, desde: 906, hasta: 99999 },
+];
+function generacionDeDex(dex) {
+  return (GEN_RANGES.find(r => dex >= r.desde && dex <= r.hasta) || {}).gen ?? null;
+}
+const TIPO_LABEL = {
+  normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
+  ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
+  psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
+  dark: "Siniestro", steel: "Acero", fairy: "Hada",
+};
+
+// Acá NO hay import de CSV ni localStorage a propósito -- es una página para
+// compartir con cualquiera, así que el "ya lo tengo" se marca con clic
+// directo en cada Pokémon (todos arrancan en fantasma) y se pierde al
+// recargar. Si querés que se guarde entre sesiones, usa la versión personal.
+let marcados = new Set();
+let dexOrdenados = [];
+
+// root: el propio contenedor con scroll interno (.pokedex-grid), no la
+// ventana -- con root=null (ventana) IntersectionObserver no descarta las
+// celdas que quedan clippeadas FUERA de este contenedor scrolleable aunque
+// entren en el viewport de la página, y las cargaría todas de golpe igual.
+const observadorSprites = new IntersectionObserver((entradas) => {
+  for (const entrada of entradas) {
+    if (!entrada.isIntersecting) continue;
+    const img = entrada.target;
+    img.src = img.dataset.src;
+    img.removeAttribute("data-src");
+    observadorSprites.unobserve(img);
+  }
+}, { root: document.getElementById("pokedex-grid"), rootMargin: "800px 0px", threshold: 0.01 });
+
+function construirDexOrdenados() {
+  const porDex = {};
+  for (const sid in pokemonIndex) {
+    const entrada = pokemonIndex[sid];
+    const dex = entrada.dex;
+    if (!dex) continue;
+    const actual = porDex[dex];
+    if (!actual || (actual.speciesId.includes("_") && !sid.includes("_"))) {
+      porDex[dex] = {
+        dex, speciesId: sid, speciesName: entrada.speciesName || sid,
+        tipos: entrada.types || [], gen: generacionDeDex(dex),
+        atk: (entrada.baseStats && entrada.baseStats.atk) || 0,
+      };
+    }
+  }
+  dexOrdenados = Object.values(porDex).sort((a, b) => a.dex - b.dex);
+  poblarSelectsPokedex();
+}
+
+function poblarSelectsPokedex() {
+  const selGen = document.getElementById("pokedex-gen");
+  if (selGen.options.length <= 1) {
+    for (const { gen } of GEN_RANGES) {
+      const opt = document.createElement("option");
+      opt.value = gen;
+      opt.textContent = `Gen ${gen}`;
+      selGen.appendChild(opt);
+    }
+  }
+  const selTipo = document.getElementById("pokedex-tipo");
+  if (selTipo.options.length <= 1) {
+    const tiposUsados = new Set();
+    // "none" es el relleno que usa PvPoke para el 2do tipo de especies de un solo tipo -- no es un tipo real.
+    dexOrdenados.forEach(e => e.tipos.forEach(t => { if (t !== "none") tiposUsados.add(t); }));
+    [...tiposUsados].sort((a, b) => (TIPO_LABEL[a] || a).localeCompare(TIPO_LABEL[b] || b)).forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = TIPO_LABEL[t] || t;
+      selTipo.appendChild(opt);
+    });
+  }
+}
+
+function tieneDex(dex) {
+  return marcados.has(dex);
+}
+
+// Tabla oficial de efectividad de tipos de PvPoke (DamageCalculator.getTypeTraits) --
+// "weaknesses" acá es la lista de tipos de ATAQUE que le pegan fuerte a ESE tipo
+// defensivo, que es justo lo que necesitamos: para el jefe de tipo X, qué tipos
+// de ataque usar.
+const TYPE_TRAITS = {
+  normal:   { weaknesses: ["fighting"], resistances: [], immunities: ["ghost"] },
+  fighting: { weaknesses: ["flying", "psychic", "fairy"], resistances: ["rock", "bug", "dark"], immunities: [] },
+  flying:   { weaknesses: ["rock", "electric", "ice"], resistances: ["fighting", "bug", "grass"], immunities: ["ground"] },
+  poison:   { weaknesses: ["ground", "psychic"], resistances: ["fighting", "poison", "bug", "fairy", "grass"], immunities: [] },
+  ground:   { weaknesses: ["water", "grass", "ice"], resistances: ["poison", "rock"], immunities: ["electric"] },
+  rock:     { weaknesses: ["fighting", "ground", "steel", "water", "grass"], resistances: ["normal", "flying", "poison", "fire"], immunities: [] },
+  bug:      { weaknesses: ["flying", "rock", "fire"], resistances: ["fighting", "ground", "grass"], immunities: [] },
+  ghost:    { weaknesses: ["ghost", "dark"], resistances: ["poison", "bug"], immunities: ["normal", "fighting"] },
+  steel:    { weaknesses: ["fighting", "ground", "fire"], resistances: ["normal", "flying", "rock", "bug", "steel", "grass", "psychic", "ice", "dragon", "fairy"], immunities: ["poison"] },
+  fire:     { weaknesses: ["ground", "rock", "water"], resistances: ["bug", "steel", "fire", "grass", "ice", "fairy"], immunities: [] },
+  water:    { weaknesses: ["grass", "electric"], resistances: ["steel", "fire", "water", "ice"], immunities: [] },
+  grass:    { weaknesses: ["flying", "poison", "bug", "fire", "ice"], resistances: ["ground", "water", "grass", "electric"], immunities: [] },
+  electric: { weaknesses: ["ground"], resistances: ["flying", "steel", "electric"], immunities: [] },
+  psychic:  { weaknesses: ["bug", "ghost", "dark"], resistances: ["fighting", "psychic"], immunities: [] },
+  ice:      { weaknesses: ["fighting", "fire", "steel", "rock"], resistances: ["ice"], immunities: [] },
+  dragon:   { weaknesses: ["dragon", "ice", "fairy"], resistances: ["fire", "water", "grass", "electric"], immunities: [] },
+  dark:     { weaknesses: ["fighting", "fairy", "bug"], resistances: ["ghost", "dark"], immunities: ["psychic"] },
+  fairy:    { weaknesses: ["poison", "steel"], resistances: ["fighting", "bug", "dark"], immunities: ["dragon"] },
+};
+const TIPOS_BOSS_ORDEN = ["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison",
+  "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy"];
+
+// Mismos temas/frases del recluta del Team GO Rocket que la guía personal --
+// "tipo: null" son los temas sin tipo elemental fijo (generalistas/señuelo).
+const ROCKET_TEMAS = [
+  { tipo: "normal", frase: `"Normal does not mean weak."`, tipicos: "Teddiursa/Hoothoot/Porygon → ... → Ursaring/Swellow/Kangaskhan" },
+  { tipo: "fire", frase: `"¿Sabes qué tan caliente...?" (Fuego)`, tipicos: "Litwick/Ponyta/Torchic → ... → Darmanitan/Delphox/Magmortar" },
+  { tipo: "water", frase: `"Estas aguas son traicioneras" (Agua)`, tipicos: "Mudkip/Tentacool/Krabby → ... → Walrein/Greninja/Tentacruel" },
+  { tipo: "electric", frase: `"Prepárate para electrocutarte" (Eléctrico)`, tipicos: "Voltorb/Shinx/Helioptile → ... → Luxray/Ampharos/Galvantula" },
+  { tipo: "grass", frase: `"No te enredes con nosotros" (Planta)`, tipicos: "Phantump/Treecko/Tangela → ... → Chesnaught/Trevenant/Cradily" },
+  { tipo: "ice", frase: `"Vas a quedar congelado" (Hielo)`, tipicos: "Seel/Delibird/Spheal → ... → Aurorus/Froslass/Glalie" },
+  { tipo: "fighting", frase: `"Este físico no es solo decoración" (Lucha)`, tipicos: "Timburr/Mankey/Machop → ... → Conkeldurr/Annihilape/Infernape" },
+  { tipo: "poison", frase: `"Enroscados y listos para atacar" (Veneno)`, tipicos: "Oddish/Zubat/Qwilfish → ... → Weezing/Toxicroak/Amoonguss" },
+  { tipo: "ground", frase: `"Serás derrotado hasta el suelo" (Tierra)`, tipicos: "Rhyhorn/Gligar/Trapinch → ... → Golurk/Hippowdon/Flygon" },
+  { tipo: "flying", frase: `"Batalla contra mis Pokémon Volador" (Volador)`, tipicos: "Taillow/Rookidee/Swablu → ... → Dragonite/Toucannon/Swanna" },
+  { tipo: "psychic", frase: `"¿Temes a los psíquicos?" (Psíquico)`, tipicos: "Wobbuffet/Ralts/Drowzee → ... → Gallade/Malamar/Reuniclus" },
+  { tipo: "bug", frase: `"¡Ve, mi súper Pokémon Bicho!" (Bicho)`, tipicos: "Venonat/Weedle/Grubbin → ... → Scizor/Scolipede/Vikavolt" },
+  { tipo: "rock", frase: `"A rodar" (Roca)`, tipicos: "Onix/Kabuto/Cranidos → ... → Tyrantrum/Golem/Aurorus" },
+  { tipo: "ghost", frase: `"Ke...ke...ke..." (Fantasma)`, tipicos: "Duskull/Gastly/Yamask → ... → Gengar/Froslass/Cofagrigus" },
+  { tipo: "dragon", frase: `"¡ROAR!" (Dragón)`, tipicos: "Noibat/Deino/Dratini → ... → Dragonite/Garchomp/Salamence" },
+  { tipo: "dark", frase: `"Donde hay luz, hay sombra" (Siniestro)`, tipicos: "Carvanha/Poochyena/Rattata Alola → ... → Liepard/Hydreigon" },
+  { tipo: "steel", frase: `"No eres rival para mi voluntad de hierro" (Acero)`, tipicos: "Sandshrew Alola/Aron/Beldum → ... → Aggron/Sandslash Alola/Probopass" },
+  { tipo: "fairy", frase: `"Mira mis Pokémon lindos" (Hada)`, tipicos: "Ralts/Snubbull/Vulpix Alola → ... → Ninetales Alola/Weezing Galar/Granbull" },
+  { tipo: null, frase: `"Ganar es para ganadores" (iniciales/Snorlax/Lapras)`, tipicos: "Bulbasaur-Venusaur / Charmander-Charizard / Squirtle-Blastoise / Snorlax / Gyarados / Dragonite" },
+  { tipo: null, frase: `"Fooled ya, twerp" (señuelo)`, tipicos: "Bellsprout/Raticate/Weepinbell/Snorlax" },
+];
+
+// Entre lo que el visitante marcó como suyo, busca el de mayor Ataque base que le
+// pegue fuerte al tipo del jefe. Si no tiene nada dedicado a ese tipo, igual
+// devuelve su mejor Ataque general marcado ("menos peor") en vez de dejar vacío.
+function mejorAtacanteMarcado(tipoBoss) {
+  const marcadosLista = dexOrdenados.filter(e => marcados.has(e.dex));
+  if (!marcadosLista.length) return null;
+  if (tipoBoss && TYPE_TRAITS[tipoBoss]) {
+    const debilidades = TYPE_TRAITS[tipoBoss].weaknesses;
+    const ideales = marcadosLista.filter(e => e.tipos.some(t => debilidades.includes(t)));
+    if (ideales.length) {
+      ideales.sort((a, b) => b.atk - a.atk);
+      return { entrada: ideales[0], ideal: true };
+    }
+  }
+  const ordenados = [...marcadosLista].sort((a, b) => b.atk - a.atk);
+  return { entrada: ordenados[0], ideal: false };
+}
+
+function chipMarcado(entrada) {
+  return `<span class="poke-mini"><img class="poke-mini-icon" src="${SPRITE_URL(entrada.dex)}" alt="" loading="lazy">${entrada.speciesName}</span>`;
+}
+
+const MSG_SIN_MARCAR = `Todavía no marcaste ningún Pokémon en tu Pokédex -- anda a la pestaña 📖 Pokédex y marca los que ya tienes.`;
+
+function renderIncursionesPublico() {
+  const tbody = document.querySelector("#tabla-incursiones-publico tbody");
+  if (!tbody) return;
+  if (!marcados.size) {
+    tbody.innerHTML = `<tr><td colspan="2">${MSG_SIN_MARCAR}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = TIPOS_BOSS_ORDEN.map(tipo => {
+    const mejor = mejorAtacanteMarcado(tipo);
+    const celda = mejor
+      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">(menos peor -- sin nada dedicado a ${TIPO_LABEL[tipo]})</span>`)
+      : "--";
+    return `<tr><td>${TIPO_LABEL[tipo]}</td><td>${celda}</td></tr>`;
+  }).join("");
+}
+
+function renderRocketPublico() {
+  const tbody = document.querySelector("#tabla-rocket-publico tbody");
+  if (!tbody) return;
+  if (!marcados.size) {
+    tbody.innerHTML = `<tr><td colspan="3">${MSG_SIN_MARCAR}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = ROCKET_TEMAS.map(tema => {
+    const mejor = mejorAtacanteMarcado(tema.tipo);
+    const celda = mejor
+      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">(menos peor)</span>`)
+      : "--";
+    return `<tr><td>${tema.frase}</td><td>${tema.tipicos}</td><td>${celda}</td></tr>`;
+  }).join("");
+}
+
+function renderPokedex() {
+  const grid = document.getElementById("pokedex-grid");
+  const resumen = document.getElementById("pokedex-resumen");
+  if (!dexOrdenados.length) construirDexOrdenados();
+
+  const filtro = stripAccents(document.getElementById("pokedex-buscar").value.trim().toLowerCase());
+  const soloObtenidos = document.getElementById("pokedex-solo-obtenidos").checked;
+  const genFiltro = document.getElementById("pokedex-gen").value;
+  const tipoFiltro = document.getElementById("pokedex-tipo").value;
+  let lista = dexOrdenados;
+  if (filtro) lista = lista.filter(e => stripAccents(e.speciesName.toLowerCase()).includes(filtro));
+  if (genFiltro) lista = lista.filter(e => String(e.gen) === genFiltro);
+  if (tipoFiltro) lista = lista.filter(e => e.tipos.includes(tipoFiltro));
+
+  const totalConFiltro = lista.length;
+  let cuantosTenidos = 0;
+  for (const e of lista) if (tieneDex(e.dex)) cuantosTenidos++;
+
+  if (soloObtenidos) lista = lista.filter(e => tieneDex(e.dex));
+
+  grid.innerHTML = lista.map(e => {
+    const tiene = tieneDex(e.dex);
+    const clase = tiene ? "tenido" : "fantasma";
+    return `<div class="pokedex-celda ${clase}" data-dex="${e.dex}" role="button" tabindex="0">
+      <img data-src="${SPRITE_URL(e.dex)}" alt="${e.speciesName}" onerror="this.style.opacity=0.15">
+      <span class="px-dex">#${e.dex}</span>
+      <span class="px-nombre">${e.speciesName}</span>
+    </div>`;
+  }).join("");
+  grid.querySelectorAll("img[data-src]").forEach(img => observadorSprites.observe(img));
+  grid.querySelectorAll(".pokedex-celda").forEach(celda => {
+    const alternar = () => {
+      const dex = parseInt(celda.dataset.dex, 10);
+      if (marcados.has(dex)) marcados.delete(dex); else marcados.add(dex);
+      renderPokedex();
+    };
+    celda.addEventListener("click", alternar);
+    celda.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternar(); } });
+  });
+
+  const hayFiltroTexto = !!(filtro || genFiltro || tipoFiltro);
+  resumen.innerHTML = `<span class="num">${cuantosTenidos}</span> / ${totalConFiltro} marcados` + (hayFiltroTexto ? " (con el filtro actual)" : "")
+    + (soloObtenidos ? ` -- mostrando solo los marcados (${lista.length})` : "") + `. Haz clic en un Pokémon para marcarlo/desmarcarlo.`;
+  renderResumenGens();
+  renderIncursionesPublico();
+  renderRocketPublico();
+}
+
+function renderResumenGens() {
+  const cont = document.getElementById("pokedex-resumen-gens");
+  const genActivo = document.getElementById("pokedex-gen").value;
+  if (!dexOrdenados.length) { cont.innerHTML = ""; return; }
+  cont.innerHTML = GEN_RANGES.map(({ gen, desde, hasta }) => {
+    const especies = dexOrdenados.filter(e => e.dex >= desde && e.dex <= hasta);
+    const total = especies.length;
+    const cuantosTenidos = especies.filter(e => tieneDex(e.dex)).length;
+    const completa = cuantosTenidos === total && total > 0;
+    const activa = String(gen) === genActivo;
+    return `<span class="pokedex-gen-badge${completa ? " completa" : ""}${activa ? " activa" : ""}" data-gen="${gen}">`
+      + `Gen ${gen}: ${cuantosTenidos}/${total}</span>`;
+  }).join("");
+  cont.querySelectorAll(".pokedex-gen-badge").forEach(badge => {
+    badge.addEventListener("click", () => {
+      const sel = document.getElementById("pokedex-gen");
+      sel.value = sel.value === badge.dataset.gen ? "" : badge.dataset.gen;
+      renderPokedex();
+    });
+  });
+}
+
+document.getElementById("btn-reiniciar-pokedex").addEventListener("click", () => {
+  marcados = new Set();
+  renderPokedex();
+});
+document.getElementById("pokedex-buscar").addEventListener("input", () => renderPokedex());
+document.getElementById("pokedex-solo-obtenidos").addEventListener("change", () => renderPokedex());
+document.getElementById("pokedex-gen").addEventListener("change", () => renderPokedex());
+document.getElementById("pokedex-tipo").addEventListener("change", () => renderPokedex());
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("activo", b === btn));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("activo"));
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("activo");
+    if (btn.dataset.tab === "pokedex" && motorListo) renderPokedex();
+    if (btn.dataset.tab === "guias" && motorListo) { renderIncursionesPublico(); renderRocketPublico(); }
+  });
+});
+
+document.querySelectorAll(".subtab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".subtab-btn").forEach(b => b.classList.toggle("activo", b === btn));
+    document.querySelectorAll(".subtab-panel").forEach(p => p.classList.remove("activo"));
+    document.getElementById(`subtab-${btn.dataset.subtab}`).classList.add("activo");
+  });
+});
+
+async function iniciar() {
+  filas = cargarLocalStorage();
+  render();
+  try {
+    await inicializarMotor();
+    bannerCarga.classList.add("oculto");
+    document.getElementById("btn-agregar").disabled = false;
+    document.getElementById("btn-exportar").disabled = false;
+    document.getElementById("btn-limpiar").disabled = false;
+    render(); // re-evalúa filas ya cargadas ahora que el motor está listo
+    construirDexOrdenados();
+    renderPokedex();
+  } catch (e) {
+    bannerCarga.classList.add("error");
+    document.querySelector(".spinner").style.display = "none";
+    textoCarga.textContent = `No se pudo cargar PvPoke (¿sin internet?): ${e.message}. Revisa tu conexión y recarga la página.`;
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
