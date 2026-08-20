@@ -147,6 +147,7 @@
   .pokedex-celda:hover { border-color: var(--acento); }
   .pokedex-celda:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
   .pokedex-celda img { width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; }
+  .pokedex-celda .px-no-lanzado { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: var(--texto-tenue); }
   .pokedex-celda .px-dex { font-size: 0.62rem; color: var(--texto-tenue); }
   .pokedex-celda .px-nombre { font-size: 0.66rem; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pokedex-celda.fantasma { opacity: 0.28; filter: grayscale(1); }
@@ -1142,6 +1143,7 @@ function construirDexOrdenados() {
         dex, speciesId: sid, speciesName: entrada.speciesName || sid,
         tipos: entrada.types || [], gen: generacionDeDex(dex),
         atk: (entrada.baseStats && entrada.baseStats.atk) || 0,
+        released: entrada.released !== false,
       };
     }
   }
@@ -1308,8 +1310,11 @@ function renderPokedex() {
   grid.innerHTML = lista.map(e => {
     const tiene = tieneDex(e.dex);
     const clase = tiene ? "tenido" : "fantasma";
+    const imgHtml = e.released
+      ? `<img data-src="${SPRITE_URL(e.dex)}" alt="${e.speciesName}" onerror="this.style.opacity=0.15">`
+      : `<span class="px-no-lanzado" title="Todavía no existe en Pokémon GO">?</span>`;
     return `<div class="pokedex-celda ${clase}" data-dex="${e.dex}" role="button" tabindex="0">
-      <img data-src="${SPRITE_URL(e.dex)}" alt="${e.speciesName}" onerror="this.style.opacity=0.15">
+      ${imgHtml}
       <span class="px-dex">#${e.dex}</span>
       <span class="px-nombre">${e.speciesName}</span>
     </div>`;
