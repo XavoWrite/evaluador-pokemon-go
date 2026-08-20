@@ -93,6 +93,10 @@
   .veredicto-caja.estado-azul    { border: none; border-top: 2px dashed var(--borde); background: rgba(77,179,240,0.10); border-left: 5px solid var(--acento); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
   .veredicto-caja.estado-naranja { border: none; border-top: 2px dashed var(--borde); background: rgba(244,150,63,0.10); border-left: 5px solid var(--naranja); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 4px; }
 
+  .tarjeta-comparacion { font-size: 0.8rem; font-weight: 700; padding: 7px 12px; border-radius: 6px; margin-bottom: 8px; }
+  .tarjeta-comparacion.comparacion-mejor { background: rgba(82,201,107,0.14); color: var(--verde); }
+  .tarjeta-comparacion.comparacion-peor { background: rgba(255,255,255,0.04); color: var(--texto-tenue); font-weight: 500; }
+
   .veredicto-titulo { font-size: 1.2rem; font-weight: 800; margin: 0 0 4px; line-height: 1.35; }
   .estado-verde   .veredicto-titulo { color: var(--verde); }
   .estado-rojo    .veredicto-titulo { color: var(--rojo); }
@@ -707,7 +711,11 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
     if (notaShadow) detalle += `\n${notaShadow}`;
   }
 
-  return { colorClase, titulo, detalle, etiquetas, apto };
+  const scoreComparacion = mejorPropio
+    ? { percent: mejorPropio.percent, liga: LEAGUE_LABEL[mejorPropio.league] || mejorPropio.league }
+    : null;
+
+  return { colorClase, titulo, detalle, etiquetas, apto, scoreComparacion };
 }
 
 // =====================================================================
@@ -724,6 +732,45 @@ const textoCarga = document.getElementById("texto-carga");
 let filas = [];
 let guardadoTimeout = null;
 const debounceTimers = new Map();
+let mapaTarjetas = new Map(); // fila.id -> elemento .tarjeta, para pintar la comparación sin re-renderizar todo
+
+function normalizarEspecie(nombre) {
+  return stripAccents(String(nombre || "").trim().toLowerCase());
+}
+
+// Cuando dos o más tarjetas tienen la misma especie escrita (ej. atrapaste 3
+// Registeel), marca cuál de esos ejemplares tiene mejor % IV propio -- útil
+// para decidir cuál te quedas. Compara por especie tal cual fue escrita, no
+// por línea evolutiva.
+function actualizarComparaciones() {
+  const grupos = new Map();
+  filas.forEach(f => {
+    const clave = normalizarEspecie(f.pokemon);
+    if (!clave || f._score == null) return;
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(f);
+  });
+  filas.forEach(f => {
+    const tarjeta = mapaTarjetas.get(f.id);
+    if (!tarjeta) return;
+    const el = tarjeta.querySelector(".tarjeta-comparacion");
+    if (!el) return;
+    const clave = normalizarEspecie(f.pokemon);
+    const grupo = clave ? grupos.get(clave) : null;
+    if (!grupo || grupo.length < 2) {
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+    const mejor = grupo.reduce((a, b) => (b._score > a._score ? b : a));
+    const esMejor = f.id === mejor.id;
+    el.style.display = "";
+    el.className = "tarjeta-comparacion " + (esMejor ? "comparacion-mejor" : "comparacion-peor");
+    el.textContent = esMejor
+      ? `🏆 El mejor de tus ${grupo.length} ${f.pokemon.trim()} marcados aquí -- ${f._score}% IV propio (mejor en ${f._scoreLiga})`
+      : `⬇️ Tienes otro ${f.pokemon.trim()} mejor arriba -- este quedó en ${f._score}% IV propio`;
+  });
+}
 
 function nuevaFila(datos = {}) {
   return {
@@ -769,6 +816,8 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
     elVeredicto.textContent = "Completa especie + los 3 IVs...";
     elVeredicto.className = "veredicto-caja vacio";
     fila.veredicto = "";
+    fila._score = null;
+    actualizarComparaciones();
     return;
   }
   const atk = parseInt(fila.iv_atk, 10), def = parseInt(fila.iv_def, 10), hp = parseInt(fila.iv_hp, 10);
@@ -785,6 +834,8 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
         elVeredicto.textContent = `No reconozco "${especie}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).`;
         elVeredicto.className = "veredicto-caja error";
         fila.veredicto = "";
+        fila._score = null;
+        actualizarComparaciones();
         guardarLocalStorage();
         return;
       }
@@ -795,6 +846,8 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
         elVeredicto.innerHTML = `<div class="veredicto-detalle">Completa los 3 IVs para ver el veredicto de ESTE ejemplar...</div>${idealHtml}`;
         elVeredicto.className = "veredicto-caja vacio";
         fila.veredicto = "";
+        fila._score = null;
+        actualizarComparaciones();
         guardarLocalStorage();
         return;
       }
@@ -805,6 +858,8 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
         elVeredicto.textContent = resultado.error;
         elVeredicto.className = "veredicto-caja error";
         fila.veredicto = "";
+        fila._score = null;
+        actualizarComparaciones();
         guardarLocalStorage();
         return;
       }
@@ -818,9 +873,14 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
         + idealHtml;
       elVeredicto.className = `veredicto-caja ${resultado.colorClase}`;
       fila.veredicto = `${resultado.titulo}\n${resultado.detalle}\n\n${idealSinHundo}`;
+      fila._score = resultado.scoreComparacion ? resultado.scoreComparacion.percent : null;
+      fila._scoreLiga = resultado.scoreComparacion ? resultado.scoreComparacion.liga : null;
+      actualizarComparaciones();
     } catch (e) {
       elVeredicto.textContent = `Error evaluando: ${e.message}`;
       elVeredicto.className = "veredicto-caja error";
+      fila._score = null;
+      actualizarComparaciones();
     }
     guardarLocalStorage();
   }, 500));
@@ -880,9 +940,11 @@ function conectarAutocompletar(inputEl, listaEl, fila, elVeredicto, elSprite) {
 
 function render() {
   contenedorTarjetas.innerHTML = "";
+  mapaTarjetas = new Map();
   filas.forEach((fila) => {
     const div = document.createElement("div");
     div.className = "tarjeta";
+    mapaTarjetas.set(fila.id, div);
     div.innerHTML = `
       <div class="tarjeta-cuerpo">
         <div class="sprite-wrap"><span class="sin-imagen">❔</span></div>
@@ -912,6 +974,7 @@ function render() {
           </div>
         </div>
       </div>
+      <div class="tarjeta-comparacion" style="display:none;"></div>
       <div class="veredicto-caja vacio">Completa especie + los 3 IVs...</div>
     `;
     const elVeredicto = div.querySelector(".veredicto-caja");
