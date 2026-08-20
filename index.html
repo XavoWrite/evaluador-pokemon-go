@@ -278,6 +278,35 @@
 const GAMEMASTER_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/gamemaster.json";
 const POKEMON_JS_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/js/pokemon/Pokemon.js";
 const SPRITE_URL = (dex) => `https://res.pokecoords.com/pokemon/${String(dex).padStart(4, "0")}.png`;
+
+// El servidor de arriba solo tiene un sprite por número de Pokédex, así que
+// no distingue formas regionales (una Meowth Galar sale igual que la Kanto).
+// Para Galar usamos los íconos oficiales minados por PokeMiners (pogo_assets):
+// la mayoría de formas Galar recientes siguen un patrón por nombre; las 8 más
+// viejas (2020, antes del sistema nuevo de íconos) usan códigos numéricos
+// clásicos que verificamos a mano viendo las imágenes una por una.
+const ICONO_CLASICO_POR_ESPECIE = {
+  meowth_galarian: { dex: 52, form: "31" },
+  ponyta_galarian: { dex: 77, form: "31" },
+  rapidash_galarian: { dex: 78, form: "31" },
+  slowpoke_galarian: { dex: 79, form: "31" },
+  slowbro_galarian: { dex: 80, form: "31" },
+  farfetchd_galarian: { dex: 83, form: "31" },
+  darmanitan_galarian_standard: { dex: 555, form: "31" },
+  darmanitan_galarian_zen: { dex: 555, form: "32" },
+};
+function spriteUrlEspecie(speciesId, dex) {
+  const clasico = speciesId && ICONO_CLASICO_POR_ESPECIE[speciesId];
+  if (clasico) {
+    return `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/pokemon_icon_${String(clasico.dex).padStart(3, "0")}_${clasico.form}.png`;
+  }
+  const entrada = speciesId && pokemonIndex[speciesId];
+  const tags = (entrada && entrada.tags) || [];
+  if (tags.includes("galarian") && dex) {
+    return `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm${String(dex).padStart(3, "0")}.fGALARIAN.icon.png`;
+  }
+  return SPRITE_URL(dex);
+}
 const LEAGUE_URLS = {
   little: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/little/overall/rankings-500.json",
   great: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/all/overall/rankings-1500.json",
@@ -803,7 +832,12 @@ function actualizarSprite(fila, elSprite) {
   const speciesId = resolveSpeciesId(fila.pokemon);
   const dex = speciesId && pokemonIndex[speciesId] ? pokemonIndex[speciesId].dex : null;
   if (dex) {
-    elSprite.innerHTML = `<img src="${SPRITE_URL(dex)}" alt="${fila.pokemon}" onerror="this.parentElement.innerHTML='<span class=&quot;sin-imagen&quot;>❔</span>'">`;
+    const urlForma = spriteUrlEspecie(speciesId, dex);
+    const urlBase = SPRITE_URL(dex);
+    const onerror = urlForma !== urlBase
+      ? `if(this.src!=='${urlBase}'){this.src='${urlBase}';}else{this.parentElement.innerHTML='<span class=&quot;sin-imagen&quot;>❔</span>';}`
+      : `this.parentElement.innerHTML='<span class=&quot;sin-imagen&quot;>❔</span>'`;
+    elSprite.innerHTML = `<img src="${urlForma}" alt="${fila.pokemon}" onerror="${onerror}">`;
   } else {
     elSprite.innerHTML = `<span class="sin-imagen">❔</span>`;
   }
@@ -896,7 +930,16 @@ function conectarAutocompletar(inputEl, listaEl, fila, elVeredicto, elSprite) {
     if (!sugerencias.length) { ocultar(); return; }
     listaEl.innerHTML = sugerencias.map((n, i) => {
       const dex = dexPorNombre[n];
-      const imgHtml = dex ? `<img src="${SPRITE_URL(dex)}" alt="" onerror="this.style.visibility='hidden'">` : "";
+      let imgHtml = "";
+      if (dex) {
+        const speciesId = resolveSpeciesId(n);
+        const urlForma = spriteUrlEspecie(speciesId, dex);
+        const urlBase = SPRITE_URL(dex);
+        const onerror = urlForma !== urlBase
+          ? `if(this.src!=='${urlBase}'){this.src='${urlBase}';}else{this.style.visibility='hidden';}`
+          : `this.style.visibility='hidden'`;
+        imgHtml = `<img src="${urlForma}" alt="" onerror="${onerror}">`;
+      }
       return `<li data-i="${i}">${imgHtml}<span>${n}</span></li>`;
     }).join("");
     listaEl.style.display = "flex";
