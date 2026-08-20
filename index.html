@@ -183,7 +183,6 @@
     <div class="tab-panel activo" id="tab-evaluador">
       <div class="barra">
         <button class="primario" id="btn-agregar" disabled>+ Agregar Pokémon</button>
-        <button id="btn-exportar" disabled>💾 Exportar CSV (respaldo opcional)</button>
         <button id="btn-limpiar" disabled>🗑️ Vaciar todo</button>
         <span id="estado-guardado">Guardado ✓</span>
         <span class="contador" id="contador">0 pokémon</span>
@@ -978,29 +977,6 @@ document.getElementById("btn-limpiar").addEventListener("click", () => {
   render();
 });
 
-function csvEscape(valor) {
-  const s = String(valor ?? "");
-  return (s.includes(",") || s.includes('"') || s.includes("\n")) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-
-document.getElementById("btn-exportar").addEventListener("click", () => {
-  const encabezado = "Pokemon,IV_Atk,IV_Def,IV_HP,PC_Actual,Favorito,Shadow,Veredicto";
-  const filasValidas = filas.filter(f => f.pokemon.trim() !== "");
-  const lineas = filasValidas.map(f => [
-    f.pokemon, f.iv_atk, f.iv_def, f.iv_hp, f.cp, f.favorito ? "Si" : "No", f.shadow ? "Si" : "No", f.veredicto
-  ].map(csvEscape).join(","));
-  const csv = [encabezado, ...lineas].join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `mis_pokemon_evaluados_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
 // =====================================================================
 // Pestaña Pokédex -- lista completa de especies (dex nacional), marcando
 // en color las que ya tienes y en "fantasma" (baja opacidad + gris) las
@@ -1307,7 +1283,6 @@ async function iniciar() {
     await inicializarMotor();
     bannerCarga.classList.add("oculto");
     document.getElementById("btn-agregar").disabled = false;
-    document.getElementById("btn-exportar").disabled = false;
     document.getElementById("btn-limpiar").disabled = false;
     render(); // re-evalúa filas ya cargadas ahora que el motor está listo
     construirDexOrdenados();
