@@ -153,7 +153,11 @@
   .pokedex-celda img { width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; }
   .pokedex-celda .px-no-lanzado { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: var(--texto-tenue); }
   .pokedex-celda .px-dex { font-size: 0.62rem; color: var(--texto-tenue); }
+  .pokedex-celda .px-tipos { display: flex; gap: 3px; justify-content: center; }
+  .pokedex-celda .px-tipos img { width: 14px; height: 14px; object-fit: contain; }
   .pokedex-celda .px-nombre { font-size: 0.66rem; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tipo-chip { display: inline-flex; align-items: center; gap: 4px; }
+  .tipo-chip img { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
   .pokedex-celda.fantasma { opacity: 0.28; filter: grayscale(1); }
   .pokedex-celda.fantasma .px-nombre { color: var(--texto-tenue); }
   .pokedex-celda.tenido { border-color: #2f9a48; }
@@ -289,6 +293,16 @@
 const GAMEMASTER_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/gamemaster.json";
 const POKEMON_JS_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/js/pokemon/Pokemon.js";
 const SPRITE_URL = (dex) => `https://res.pokecoords.com/pokemon/${String(dex).padStart(4, "0")}.png`;
+
+// Íconos de tipo oficiales del juego, minados por PokeMiners (mismo repo que
+// ya usamos para las formas de Galar más abajo).
+const TIPO_ICONO_ARCHIVO = {
+  normal: "ico_0_normal", fighting: "ico_1_fighting", flying: "ico_2_flying", poison: "ico_3_poison",
+  ground: "ico_4_ground", rock: "ico_5_rock", bug: "ico_6_bug", ghost: "ico_7_ghost", steel: "ico_8_steel",
+  fire: "ico_9_fire", water: "ico_10_water", grass: "ico_11_grass", electric: "ico_12_electric",
+  psychic: "ico_13_psychic", ice: "ico_14_ice", dragon: "ico_15_dragon", dark: "ico_16_dark", fairy: "ico_17_fairy",
+};
+const TIPO_ICONO_URL = (tipo) => `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Types/${TIPO_ICONO_ARCHIVO[tipo]}.png`;
 
 // El servidor de arriba solo tiene un sprite por número de Pokédex, así que
 // no distingue formas regionales (una Meowth Galar sale igual que la Kanto).
@@ -1715,6 +1729,11 @@ function chipMarcado(entrada) {
   return `<span class="poke-mini"><img class="poke-mini-icon" src="${SPRITE_URL(entrada.dex)}" alt="" loading="lazy">${entrada.speciesName}</span>`;
 }
 
+function chipTipo(tipo) {
+  if (!tipo) return "";
+  return `<span class="tipo-chip"><img src="${TIPO_ICONO_URL(tipo)}" alt="" loading="lazy">${TIPO_LABEL[tipo]}</span>`;
+}
+
 function renderIncursionesPublico() {
   const tbody = document.querySelector("#tabla-incursiones-publico tbody");
   if (!tbody) return;
@@ -1727,7 +1746,7 @@ function renderIncursionesPublico() {
     const celda = mejor
       ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">${t("menos_peor_tipo", TIPO_LABEL[tipo])}</span>`)
       : "--";
-    return `<tr><td>${TIPO_LABEL[tipo]}</td><td>${celda}</td></tr>`;
+    return `<tr><td>${chipTipo(tipo)}</td><td>${celda}</td></tr>`;
   }).join("");
 }
 
@@ -1744,7 +1763,7 @@ function renderRocketPublico() {
     const celda = mejor
       ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">${t("menos_peor")}</span>`)
       : "--";
-    const temaTxt = tema.tipo ? ` (${TIPO_LABEL[tema.tipo]})` : ` (${t(tema.temaExtra)})`;
+    const temaTxt = tema.tipo ? ` (${chipTipo(tema.tipo)})` : ` (${t(tema.temaExtra)})`;
     const frase = `"${frases[i]}"${temaTxt}`;
     return `<tr><td>${frase}</td><td>${tema.tipicos}</td><td>${celda}</td></tr>`;
   }).join("");
@@ -1776,9 +1795,12 @@ function renderPokedex() {
     const imgHtml = e.released
       ? `<img data-src="${SPRITE_URL(e.dex)}" alt="${e.speciesName}" onerror="this.style.opacity=0.15">`
       : `<span class="px-no-lanzado" title="${t("no_lanzado_title")}">?</span>`;
+    const tiposHtml = e.tipos.filter(tp => tp !== "none")
+      .map(tp => `<img src="${TIPO_ICONO_URL(tp)}" alt="${TIPO_LABEL[tp]}" title="${TIPO_LABEL[tp]}" loading="lazy">`).join("");
     return `<div class="pokedex-celda ${clase}" data-dex="${e.dex}" role="button" tabindex="0">
       ${imgHtml}
       <span class="px-dex">#${e.dex}</span>
+      <span class="px-tipos">${tiposHtml}</span>
       <span class="px-nombre">${e.speciesName}</span>
     </div>`;
   }).join("");
