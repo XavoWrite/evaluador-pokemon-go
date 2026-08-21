@@ -26,6 +26,10 @@
   header { flex: 1; }
   header h1 { font-size: 1.3rem; margin: 0 0 3px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.35); letter-spacing: 0.02em; }
   header .sub { color: rgba(255,255,255,0.88); font-size: 0.8rem; line-height: 1.5; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .selector-idioma { display: flex; gap: 4px; flex-shrink: 0; align-self: flex-start; }
+  .selector-idioma button { background: rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 4px 7px; font-size: 1.1rem; line-height: 1; cursor: pointer; }
+  .selector-idioma button.activo { border-color: #fff; background: rgba(255,255,255,0.25); }
+  .selector-idioma button:hover { border-color: #fff; }
 
   .pantalla { background: var(--pantalla-bg); border: 7px solid #d8d6c4; border-radius: 16px; padding: 18px; box-shadow: inset 0 3px 14px rgba(0,0,0,0.65); }
 
@@ -164,13 +168,19 @@
       <span class="luz-amarilla"></span><span class="luz-verde"></span><span class="luz-blanca"></span>
     </div>
     <header>
-      <h1>Evaluador de Pokémon</h1>
-      <span class="sub">
+      <h1 id="titulo-app">Evaluador de Pokémon</h1>
+      <span class="sub" id="sub-app">
         Escribe especie + IVs de un pokémon que ya atrapaste (los datos que veas en el juego) y el veredicto
         aparece solo -- top PvP, hundo/nundo, o nada destacado. Todo corre en este navegador, sin instalar
         nada ni guardar ningún archivo en ningún servidor.
       </span>
     </header>
+    <div class="selector-idioma" title="Language / Idioma">
+      <button type="button" data-idioma="es_LA" title="Español (Latinoamérica)">🌎</button>
+      <button type="button" data-idioma="es_ES" title="Español (España)">🇪🇸</button>
+      <button type="button" data-idioma="en" title="English">🇺🇸</button>
+      <button type="button" data-idioma="pt" title="Português">🇧🇷</button>
+    </div>
   </div>
 
   <div class="pantalla">
@@ -195,7 +205,7 @@
 
       <div class="tarjetas" id="tarjetas"></div>
 
-      <div class="ayuda">
+      <div class="ayuda" id="ayuda-texto">
         <b>PC (Puntos de Combate) SÍ afecta el veredicto</b>: si el PC actual de tu ejemplar ya superó el
         tope de una liga, esa liga se descarta de verdad (un Pokémon nunca baja de nivel, así que si ya está
         sobre el tope no hay forma de que entre). Déjalo vacío si no lo sabes -- sin PC se evalúa el techo
@@ -229,7 +239,7 @@
         <input type="text" id="pokedex-buscar" placeholder="Buscar especie...">
         <select id="pokedex-gen"><option value="">Todas las generaciones</option></select>
         <select id="pokedex-tipo"><option value="">Todos los tipos</option></select>
-        <label class="favorito-toggle"><input type="checkbox" id="pokedex-solo-obtenidos"> Ocultar los que no tengo</label>
+        <label class="favorito-toggle"><input type="checkbox" id="pokedex-solo-obtenidos"> <span id="label-ocultar-no-tengo">Ocultar los que no tengo</span></label>
       </div>
       <div class="pokedex-resumen" id="pokedex-resumen">
         Todos empiezan en fantasma -- haz clic en cada Pokémon que ya tengas para marcarlo. Esto NO se guarda:
@@ -246,23 +256,23 @@
       </div>
 
       <div class="subtab-panel activo" id="subtab-incursiones">
-        <p class="guia-nota">Estas recomendaciones se arman al vuelo con lo que marcaste en tu <b>Pokédex</b>
+        <p class="guia-nota" id="guia-incursiones-nota">Estas recomendaciones se arman al vuelo con lo que marcaste en tu <b>Pokédex</b>
         (pestaña anterior) -- se asume que cada Pokémon marcado es hundo o tiene al menos 97% IV, ya que esta
         página no guarda IVs reales. Para cada tipo de jefe se elige tu mejor atacante posible (mayor Ataque
         base entre los que le pegan fuerte); si no tienes nada ideal para ese tipo, te mostramos el "menos peor"
         de lo que sí marcaste.</p>
         <div class="rocket-tabla-wrap"><table class="rocket-tabla" id="tabla-incursiones-publico">
-          <thead><tr><th>Tipo del jefe</th><th>Tu mejor atacante marcado</th></tr></thead>
+          <thead><tr><th id="th-tipo-jefe">Tipo del jefe</th><th id="th-mejor-atacante">Tu mejor atacante marcado</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
 
       <div class="subtab-panel" id="subtab-rocket">
-        <p class="guia-nota">Igual que arriba, esto usa lo que marcaste en tu <b>Pokédex</b> -- se asume hundo o al
+        <p class="guia-nota" id="guia-rocket-nota">Igual que arriba, esto usa lo que marcaste en tu <b>Pokédex</b> -- se asume hundo o al
         menos 97% IV. La <b>frase</b> del recluta te dice el tipo antes de entrar; usa esa pista para elegir con
         cuál de tus Pokémon marcados entrar.</p>
         <div class="rocket-tabla-wrap"><table class="rocket-tabla" id="tabla-rocket-publico">
-          <thead><tr><th>Frase / tema</th><th>Pokémon típicos</th><th>Tu mejor opción marcada</th></tr></thead>
+          <thead><tr><th id="th-frase-tema">Frase / tema</th><th id="th-pokemon-tipicos">Pokémon típicos</th><th id="th-mejor-opcion">Tu mejor opción marcada</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
@@ -308,6 +318,459 @@ function spriteUrlEspecie(speciesId, dex) {
   }
   return SPRITE_URL(dex);
 }
+// =====================================================================
+// i18n -- 4 idiomas (español Latinoamérica es el default). Cada locale es
+// un objeto con las mismas claves; los valores dinámicos son funciones.
+// t(clave, ...args) resuelve contra el idioma activo, con fallback a
+// es_LA si a algún locale le falta una clave (no debería pasar, pero
+// evita que la página se rompa si un futuro cambio olvida traducir algo).
+// =====================================================================
+const IDIOMAS = [
+  { code: "es_LA", flag: "🌎", nombre: "Español (Latinoamérica)" },
+  { code: "es_ES", flag: "🇪🇸", nombre: "Español (España)" },
+  { code: "en", flag: "🇺🇸", nombre: "English" },
+  { code: "pt", flag: "🇧🇷", nombre: "Português" },
+];
+let idioma = localStorage.getItem("pokealert_idioma_v1") || "es_LA";
+if (!IDIOMAS.some(i => i.code === idioma)) idioma = "es_LA";
+
+function t(clave, ...args) {
+  const val = (I18N[idioma] && I18N[idioma][clave] !== undefined) ? I18N[idioma][clave] : I18N.es_LA[clave];
+  if (val === undefined) return `[[${clave}]]`;
+  return typeof val === "function" ? val(...args) : val;
+}
+
+const I18N = {
+  es_LA: {
+    liga_label: { little: "Copa Chica", great: "Liga Súper", ultra: "Liga Ultra", master: "Liga Master",
+      weather: "Copa del Clima", evolution: "Copa Evolución", catch: "Copa Captura",
+      scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Master Mega" },
+    tipo_label: { normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
+      ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
+      psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
+      dark: "Siniestro", steel: "Acero", fairy: "Hada" },
+    header_titulo: "Evaluador de Pokémon",
+    header_sub: "Escribe especie + IVs de un pokémon que ya atrapaste (los datos que veas en el juego) y el veredicto aparece solo -- top PvP, hundo/nundo, o nada destacado. Todo corre en este navegador, sin instalar nada ni guardar ningún archivo en ningún servidor.",
+    cargando_inicial: "Cargando datos de PvPoke (especies, tabla de niveles, rankings)...",
+    tab_evaluador: "Evaluador", tab_pokedex: "📖 Pokédex", tab_guias: "📋 Guías",
+    btn_agregar: "+ Agregar Pokémon", btn_vaciar: "🗑️ Vaciar todo", guardado: "Guardado ✓",
+    contador: (n) => `${n} pokémon`,
+    label_especie: "Especie", placeholder_especie: "ej. Umbreon", title_borrar_especie: "Borrar especie",
+    label_favorito: "⭐ Favorito", label_shadow: "🌑 Shadow", title_borrar: "Borrar",
+    label_atk: "Atk", label_def: "Def", label_hp: "HP", label_pc: "PC (nota)",
+    completa_especie_ivs: "Completa especie + los 3 IVs...",
+    cargando_motor: "Cargando motor de PvP...",
+    ayuda_html: `<b>PC (Puntos de Combate) SÍ afecta el veredicto</b>: si el PC actual de tu ejemplar ya superó el
+      tope de una liga, esa liga se descarta de verdad (un Pokémon nunca baja de nivel, así que si ya está
+      sobre el tope no hay forma de que entre). Déjalo vacío si no lo sabes -- sin PC se evalúa el techo
+      teórico normal.<br><br>
+      El recuadro de color es el veredicto de <b>ESE ejemplar con SUS IVs</b> (el que escribiste arriba):
+      verde = apto para PvP, rojo = no apto, azul = favorito y además apto, naranja = favorito pero no apto.
+      Debajo, en gris y letra chica, aparece por separado el <b>objetivo ideal de la especie en general</b>
+      (el mejor spread posible, no siempre 15/15/15) -- eso es una referencia fija de la especie, no depende
+      de los IVs que hayas escrito.<br><br>
+      Si el ejemplar NO califica como top del meta en ninguna liga, igual te muestra en rojo
+      <b>su mejor resultado para su propia especie</b> (sin el filtro de meta), para que sepas si el IV en
+      sí es bueno aunque la especie no esté de moda. Marca <b>⭐ Favorito</b> si quieres que además se salte
+      el filtro de meta por completo y te muestre cualquier liga donde participe decentemente, aunque la
+      especie no sea top real ahora mismo.<br><br>
+      Marca <b>🌑 Shadow</b> si el ejemplar es shadow (viene de Team GO Rocket) -- el PC y el rank de IV de su
+      propia especie NO cambian (el +20% ataque y −16.7% defensa se cancelan exacto en ese cálculo), pero el
+      rank de <b>meta</b> sí puede cambiar bastante (usa el ranking shadow real de PvPoke cuando existe), y en
+      PvE pega ~20% más fuerte. <b>Purificado no necesita casilla</b>: la purificación ya te sube los IVs y el
+      nivel de una sola vez en el juego -- solo escribe los IVs/CP que veas ahora en tu Pokémon ya purificado.<br><br>
+      El "mejor nivel" que aparece en el veredicto es el <b>techo teórico</b> para ese IV -- si tu pokémon ya
+      está en un nivel más alto, no se puede bajar, es solo referencia. Esta versión evalúa PvP y Hundo/Nundo;
+      no incluye XXL/XXS ni Exhibición (eso necesita altura/peso exactos, que esta versión no pide). Los
+      datos de PvPoke se cachean 12h en este navegador para no volver a descargar ~2MB cada vez que abras
+      la página.`,
+    pokedex_reiniciar: "🔄 Reiniciar", pokedex_buscar_placeholder: "Buscar especie...",
+    pokedex_todas_gen: "Todas las generaciones", pokedex_todos_tipos: "Todos los tipos",
+    pokedex_ocultar_no_tengo: "Ocultar los que no tengo",
+    pokedex_intro: "Todos empiezan en fantasma -- haz clic en cada Pokémon que ya tengas para marcarlo. Esto NO se guarda: si recargas la página, se reinicia.",
+    gen_label: (n) => `Gen ${n}`,
+    subtab_incursiones: "Incursiones", subtab_rocket: "Team GO Rocket",
+    guia_incursiones_nota: `Estas recomendaciones se arman al vuelo con lo que marcaste en tu <b>Pokédex</b>
+      (pestaña anterior) -- se asume que cada Pokémon marcado es hundo o tiene al menos 97% IV, ya que esta
+      página no guarda IVs reales. Para cada tipo de jefe se elige tu mejor atacante posible (mayor Ataque
+      base entre los que le pegan fuerte); si no tienes nada ideal para ese tipo, te mostramos el "menos peor"
+      de lo que sí marcaste.`,
+    guia_rocket_nota: `Igual que arriba, esto usa lo que marcaste en tu <b>Pokédex</b> -- se asume hundo o al
+      menos 97% IV. La <b>frase</b> del recluta te dice el tipo antes de entrar; usa esa pista para elegir con
+      cuál de tus Pokémon marcados entrar.`,
+    th_tipo_jefe: "Tipo del jefe", th_mejor_atacante: "Tu mejor atacante marcado",
+    th_frase_tema: "Frase / tema", th_pokemon_tipicos: "Pokémon típicos", th_mejor_opcion: "Tu mejor opción marcada",
+    msg_sin_marcar: "Todavía no marcaste ningún Pokémon en tu Pokédex -- anda a la pestaña 📖 Pokédex y marca los que ya tienes.",
+    tema_iniciales: "iniciales/Snorlax/Lapras", tema_senuelo: "señuelo",
+    rocket_frases: [`Lo normal no significa débil.`, `¿Sabes qué tan caliente puede llegar el fuego de un Pokémon?`, `¡Estas aguas son traicioneras!`, `¡Prepárate para electrocutarte!`, `¡No te enredes con nosotros!`, `Vas a quedar congelado en el sitio.`, `¡Este físico no es solo decoración!`, `¡Enroscados y listos para atacar!`, `¡Serás derrotado hasta el suelo!`, `¡Batalla contra mis Pokémon de tipo Volador!`, `¿Temes a los psíquicos que usan un poder invisible?`, `¡Ve, mi súper Pokémon Bicho!`, `¡A rodar!`, `Ke...ke...ke...ke...ke...ke!`, `¡ROAR! ...¿Cómo sonó eso?`, `Donde hay luz, también hay sombra.`, `¡No eres rival para mi voluntad de hierro!`, `¡Mira mis Pokémon lindos!`, `Ganar es para ganadores.`, `¡Te engañé, chamaco!`],
+    menos_peor_tipo: (tipo) => `(menos peor -- sin nada dedicado a ${tipo})`,
+    menos_peor: "(menos peor)",
+    no_reconozco: (especie) => `No reconozco "${especie}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).`,
+    completa_ivs: "Completa los 3 IVs para ver el veredicto de ESTE ejemplar...",
+    evaluando: "Evaluando...",
+    error_evaluando: (msg) => `Error evaluando: ${msg}`,
+    hundo_tag: "💯 HUNDO 100%", nundo_tag: "💀 NUNDO 0%", shadow_tag: "🌑 Shadow",
+    apto_para: (liga) => `✅ Apto para ${liga}`,
+    evolucionado_a: (especie) => ` -- evolucionado a ${especie}`,
+    evolucionado_a_corto: (especie) => ` [evolucionado a ${especie}]`,
+    no_apto_ahora: "❌ No apto para PvP ahora mismo",
+    liga_linea: (liga, evoTxt, rank, total, percent, globalRank, globalTotal, cp, nivel) =>
+      `${liga}${evoTxt}: #${rank}/${total} propio (${percent}%), Top ${globalRank ?? "?"}/${globalTotal} del meta -- PC ${cp}, Nivel ${nivel}`,
+    mas_ligas: (n) => `(+${n} liga(s)/copa(s) más)`,
+    shadow_nota: (atk, def) => `🌑 Shadow: Ataque efectivo ~${atk} (+20%), Defensa efectiva ~${def} (−16.7%) en batalla real. `
+      + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan en ese cálculo); `
+      + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`,
+    shadow_no_elegible: " (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- revisa si de verdad es shadow.)",
+    pc_nota: (cp, ligas) => `📈 Con PC ${cp} ya superaste el tope de: ${ligas} -- no se muestran para este ejemplar (no se puede bajar de nivel).`,
+    mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
+      `Su mejor resultado propio: ${especie}${evoTxt} en ${liga}: #${rank}/${total} propio (${percent}%) -- ${metaTxt}.`,
+    evolucionado_paren: " (evolucionado)",
+    especie_top_meta: (rank, total) => `especie #${rank}/${total} del meta actual`,
+    especie_fuera_meta: "especie fuera del ranking del meta actual",
+    no_se_pudo_evaluar: (nota) => `No se pudo evaluar ninguna liga para este ejemplar (¿especie sin datos de PvPoke?)${nota}.`,
+    revisa_pc_imposible: " -- revisa que el PC no sea imposible para estos IVs",
+    ideal_titulo: "🎯 Objetivo ideal de la especie (no depende de tus IVs, solo de ⭐ Favorito / 🌑 Shadow):",
+    ideal_vacio: "(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)",
+    ideal_hundo: "💯 Hundo: 15/15/15",
+    ideal_linea: (especie, liga, atk, def, hp, cp, nivel, metaTxt) =>
+      `🎯 ${especie} en ${liga}: ${atk}/${def}/${hp} (PC ${cp}, nivel ${nivel}, ${metaTxt})`,
+    top_del_meta: (rank, total) => `Top ${rank}/${total} del meta`,
+    fuera_ranking_meta: "fuera del ranking del meta actual",
+    cargando_niveles: "Cargando tabla de multiplicadores de nivel...",
+    cargando_ranking: (liga) => `Cargando ranking de ${liga}...`,
+    error_carga: (msg) => `No se pudo cargar PvPoke (¿sin internet?): ${msg}. Revisa tu conexión y recarga la página.`,
+    comparacion_mejor: (n, especie, score, liga) => `🏆 El mejor de tus ${n} ${especie} marcados aquí -- ${score}% IV propio (mejor en ${liga})`,
+    comparacion_peor: (especie, score) => `⬇️ Tienes otro ${especie} mejor arriba -- este quedó en ${score}% IV propio`,
+    no_lanzado_title: "Todavía no existe en Pokémon GO",
+    marcados_resumen: (n, total, filtroTxt, soloTxt) => `${n} / ${total} marcados${filtroTxt}${soloTxt}. Haz clic en un Pokémon para marcarlo/desmarcarlo.`,
+    con_filtro_actual: " (con el filtro actual)",
+    mostrando_solo_marcados: (n) => ` -- mostrando solo los marcados (${n})`,
+    idioma_selector_title: "Idioma",
+  },
+
+  es_ES: {
+    liga_label: { little: "Copa Chica", great: "Liga Súper", ultra: "Liga Ultra", master: "Liga Máster",
+      weather: "Copa del Clima", evolution: "Copa Evolución", catch: "Copa Captura",
+      scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Máster Mega" },
+    tipo_label: { normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
+      ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
+      psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
+      dark: "Siniestro", steel: "Acero", fairy: "Hada" },
+    header_titulo: "Evaluador de Pokémon",
+    header_sub: "Escribe la especie y los IVs de un pokémon que ya hayas capturado (los datos que veas en el juego) y el veredicto aparece solo -- top PvP, hundo/nundo, o nada destacable. Todo se ejecuta en este navegador, sin instalar nada ni guardar ningún archivo en ningún servidor.",
+    cargando_inicial: "Cargando datos de PvPoke (especies, tabla de niveles, clasificaciones)...",
+    tab_evaluador: "Evaluador", tab_pokedex: "📖 Pokédex", tab_guias: "📋 Guías",
+    btn_agregar: "+ Añadir Pokémon", btn_vaciar: "🗑️ Vaciar todo", guardado: "Guardado ✓",
+    contador: (n) => `${n} pokémon`,
+    label_especie: "Especie", placeholder_especie: "ej. Umbreon", title_borrar_especie: "Borrar especie",
+    label_favorito: "⭐ Favorito", label_shadow: "🌑 Shadow", title_borrar: "Borrar",
+    label_atk: "Atq", label_def: "Def", label_hp: "PS", label_pc: "PC (nota)",
+    completa_especie_ivs: "Completa la especie y los 3 IVs...",
+    cargando_motor: "Cargando el motor de PvP...",
+    ayuda_html: `<b>El PC (Puntos de Combate) SÍ afecta al veredicto</b>: si el PC actual de tu ejemplar ya ha
+      superado el tope de una liga, esa liga se descarta de verdad (un Pokémon nunca baja de nivel, así que si
+      ya está por encima del tope no hay forma de que entre). Déjalo en blanco si no lo sabes -- sin PC se
+      evalúa el techo teórico normal.<br><br>
+      El recuadro de color es el veredicto de <b>ESE ejemplar con SUS IVs</b> (el que has escrito arriba):
+      verde = apto para PvP, rojo = no apto, azul = favorito y además apto, naranja = favorito pero no apto.
+      Debajo, en gris y letra pequeña, aparece por separado el <b>objetivo ideal de la especie en general</b>
+      (el mejor spread posible, no siempre 15/15/15) -- eso es una referencia fija de la especie, no depende
+      de los IVs que hayas escrito.<br><br>
+      Si el ejemplar NO califica como top del meta en ninguna liga, igualmente te muestra en rojo
+      <b>su mejor resultado para su propia especie</b> (sin el filtro de meta), para que sepas si el IV en
+      sí es bueno aunque la especie no esté de moda. Marca <b>⭐ Favorito</b> si además quieres saltarte
+      el filtro de meta por completo y que se te muestre cualquier liga donde participe decentemente, aunque
+      la especie no sea top real ahora mismo.<br><br>
+      Marca <b>🌑 Shadow</b> si el ejemplar es shadow (viene del Team GO Rocket) -- el PC y el rank de IV de su
+      propia especie NO cambian (el +20% de ataque y el −16,7% de defensa se cancelan exactamente en ese
+      cálculo), pero el rank de <b>meta</b> sí puede cambiar bastante (usa el ranking shadow real de PvPoke
+      cuando existe), y en PvE pega ~20% más fuerte. <b>Purificado no necesita casilla</b>: la purificación ya
+      te sube los IVs y el nivel de una sola vez en el juego -- solo escribe los IVs/PC que veas ahora en tu
+      Pokémon ya purificado.<br><br>
+      El "mejor nivel" que aparece en el veredicto es el <b>techo teórico</b> para ese IV -- si tu pokémon ya
+      está en un nivel más alto, no se puede bajar, es solo una referencia. Esta versión evalúa PvP y
+      Hundo/Nundo; no incluye XXL/XXS ni Exhibición (eso necesita altura/peso exactos, que esta versión no
+      pide). Los datos de PvPoke se guardan en caché 12h en este navegador para no tener que volver a
+      descargar ~2MB cada vez que abras la página.`,
+    pokedex_reiniciar: "🔄 Reiniciar", pokedex_buscar_placeholder: "Buscar especie...",
+    pokedex_todas_gen: "Todas las generaciones", pokedex_todos_tipos: "Todos los tipos",
+    pokedex_ocultar_no_tengo: "Ocultar los que no tengo",
+    pokedex_intro: "Todos empiezan en fantasma -- haz clic en cada Pokémon que ya tengas para marcarlo. Esto NO se guarda: si recargas la página, se reinicia.",
+    gen_label: (n) => `Gen ${n}`,
+    subtab_incursiones: "Incursiones", subtab_rocket: "Team GO Rocket",
+    guia_incursiones_nota: `Estas recomendaciones se generan al vuelo con lo que hayas marcado en tu
+      <b>Pokédex</b> (pestaña anterior) -- se asume que cada Pokémon marcado es hundo o tiene al menos un 97%
+      de IV, ya que esta página no guarda IVs reales. Para cada tipo de jefe se elige tu mejor atacante posible
+      (mayor Ataque base entre los que le hacen daño extra); si no tienes nada ideal para ese tipo, te
+      mostramos el "menos malo" de lo que sí has marcado.`,
+    guia_rocket_nota: `Igual que arriba, esto usa lo que has marcado en tu <b>Pokédex</b> -- se asume hundo o
+      al menos 97% de IV. La <b>frase</b> del recluta te dice el tipo antes de entrar; usa esa pista para
+      elegir con cuál de tus Pokémon marcados entrar.`,
+    th_tipo_jefe: "Tipo del jefe", th_mejor_atacante: "Tu mejor atacante marcado",
+    th_frase_tema: "Frase / tema", th_pokemon_tipicos: "Pokémon típicos", th_mejor_opcion: "Tu mejor opción marcada",
+    msg_sin_marcar: "Todavía no has marcado ningún Pokémon en tu Pokédex -- ve a la pestaña 📖 Pokédex y marca los que ya tengas.",
+    tema_iniciales: "iniciales/Snorlax/Lapras", tema_senuelo: "señuelo",
+    rocket_frases: [`Lo normal no significa débil.`, `¿Sabes qué tan caliente puede llegar el fuego de un Pokémon?`, `¡Estas aguas son traicioneras!`, `¡Prepárate para electrocutarte!`, `¡No te enredes con nosotros!`, `Vas a quedar congelado en el sitio.`, `¡Este físico no es solo decoración!`, `¡Enroscados y listos para atacar!`, `¡Serás derrotado hasta el suelo!`, `¡Batalla contra mis Pokémon de tipo Volador!`, `¿Temes a los psíquicos que usan un poder invisible?`, `¡Ve, mi súper Pokémon Bicho!`, `¡A rodar!`, `Ke...ke...ke...ke...ke...ke!`, `¡ROAR! ...¿Cómo sonó eso?`, `Donde hay luz, también hay sombra.`, `¡No eres rival para mi voluntad de hierro!`, `¡Mira mis Pokémon lindos!`, `Ganar es para ganadores.`, `¡Te engañé, novato!`],
+    menos_peor_tipo: (tipo) => `(menos malo -- sin nada dedicado a ${tipo})`,
+    menos_peor: "(menos malo)",
+    no_reconozco: (especie) => `No reconozco "${especie}" -- revisa cómo lo has escrito (el nombre en inglés suele funcionar mejor).`,
+    completa_ivs: "Completa los 3 IVs para ver el veredicto de ESTE ejemplar...",
+    evaluando: "Evaluando...",
+    error_evaluando: (msg) => `Error al evaluar: ${msg}`,
+    hundo_tag: "💯 HUNDO 100%", nundo_tag: "💀 NUNDO 0%", shadow_tag: "🌑 Shadow",
+    apto_para: (liga) => `✅ Apto para ${liga}`,
+    evolucionado_a: (especie) => ` -- evolucionado a ${especie}`,
+    evolucionado_a_corto: (especie) => ` [evolucionado a ${especie}]`,
+    no_apto_ahora: "❌ No apto para PvP ahora mismo",
+    liga_linea: (liga, evoTxt, rank, total, percent, globalRank, globalTotal, cp, nivel) =>
+      `${liga}${evoTxt}: #${rank}/${total} propio (${percent}%), Top ${globalRank ?? "?"}/${globalTotal} del meta -- PC ${cp}, Nivel ${nivel}`,
+    mas_ligas: (n) => `(+${n} liga(s)/copa(s) más)`,
+    shadow_nota: (atk, def) => `🌑 Shadow: Ataque efectivo ~${atk} (+20%), Defensa efectiva ~${def} (−16,7%) en batalla real. `
+      + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan exactamente en ese cálculo); `
+      + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`,
+    shadow_no_elegible: " (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- comprueba si de verdad es shadow.)",
+    pc_nota: (cp, ligas) => `📈 Con PC ${cp} ya has superado el tope de: ${ligas} -- no se muestran para este ejemplar (no se puede bajar de nivel).`,
+    mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
+      `Su mejor resultado propio: ${especie}${evoTxt} en ${liga}: #${rank}/${total} propio (${percent}%) -- ${metaTxt}.`,
+    evolucionado_paren: " (evolucionado)",
+    especie_top_meta: (rank, total) => `especie #${rank}/${total} del meta actual`,
+    especie_fuera_meta: "especie fuera del ranking del meta actual",
+    no_se_pudo_evaluar: (nota) => `No se ha podido evaluar ninguna liga para este ejemplar (¿especie sin datos de PvPoke?)${nota}.`,
+    revisa_pc_imposible: " -- comprueba que el PC no sea imposible para estos IVs",
+    ideal_titulo: "🎯 Objetivo ideal de la especie (no depende de tus IVs, solo de ⭐ Favorito / 🌑 Shadow):",
+    ideal_vacio: "(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)",
+    ideal_hundo: "💯 Hundo: 15/15/15",
+    ideal_linea: (especie, liga, atk, def, hp, cp, nivel, metaTxt) =>
+      `🎯 ${especie} en ${liga}: ${atk}/${def}/${hp} (PC ${cp}, nivel ${nivel}, ${metaTxt})`,
+    top_del_meta: (rank, total) => `Top ${rank}/${total} del meta`,
+    fuera_ranking_meta: "fuera del ranking del meta actual",
+    cargando_niveles: "Cargando la tabla de multiplicadores de nivel...",
+    cargando_ranking: (liga) => `Cargando la clasificación de ${liga}...`,
+    error_carga: (msg) => `No se ha podido cargar PvPoke (¿sin conexión?): ${msg}. Comprueba tu conexión y recarga la página.`,
+    comparacion_mejor: (n, especie, score, liga) => `🏆 El mejor de tus ${n} ${especie} marcados aquí -- ${score}% IV propio (mejor en ${liga})`,
+    comparacion_peor: (especie, score) => `⬇️ Tienes otro ${especie} mejor arriba -- este se ha quedado en ${score}% IV propio`,
+    no_lanzado_title: "Todavía no existe en Pokémon GO",
+    marcados_resumen: (n, total, filtroTxt, soloTxt) => `${n} / ${total} marcados${filtroTxt}${soloTxt}. Haz clic en un Pokémon para marcarlo/desmarcarlo.`,
+    con_filtro_actual: " (con el filtro actual)",
+    mostrando_solo_marcados: (n) => ` -- mostrando solo los marcados (${n})`,
+    idioma_selector_title: "Idioma",
+  },
+
+  en: {
+    liga_label: { little: "Little Cup", great: "Great League", ultra: "Ultra League", master: "Master League",
+      weather: "Weather Cup", evolution: "Evolution Cup", catch: "Catch Cup",
+      scroll: "Scroll Cup", premier: "Premier Cup", mega: "Mega Master League" },
+    tipo_label: { normal: "Normal", fire: "Fire", water: "Water", electric: "Electric", grass: "Grass",
+      ice: "Ice", fighting: "Fighting", poison: "Poison", ground: "Ground", flying: "Flying",
+      psychic: "Psychic", bug: "Bug", rock: "Rock", ghost: "Ghost", dragon: "Dragon",
+      dark: "Dark", steel: "Steel", fairy: "Fairy" },
+    header_titulo: "Pokémon Evaluator",
+    header_sub: "Type the species + IVs of a Pokémon you've already caught (the numbers you see in-game) and the verdict shows up automatically -- top PvP, hundo/nundo, or nothing special. Everything runs in this browser, nothing to install and no file ever saved on any server.",
+    cargando_inicial: "Loading PvPoke data (species, level table, rankings)...",
+    tab_evaluador: "Evaluator", tab_pokedex: "📖 Pokédex", tab_guias: "📋 Guides",
+    btn_agregar: "+ Add Pokémon", btn_vaciar: "🗑️ Clear all", guardado: "Saved ✓",
+    contador: (n) => `${n} pokémon`,
+    label_especie: "Species", placeholder_especie: "e.g. Umbreon", title_borrar_especie: "Clear species",
+    label_favorito: "⭐ Favorite", label_shadow: "🌑 Shadow", title_borrar: "Delete",
+    label_atk: "Atk", label_def: "Def", label_hp: "HP", label_pc: "CP (note)",
+    completa_especie_ivs: "Fill in species + all 3 IVs...",
+    cargando_motor: "Loading PvP engine...",
+    ayuda_html: `<b>CP (Combat Power) DOES affect the verdict</b>: if your Pokémon's current CP already went
+      over a league's cap, that league is dropped for real (a Pokémon can never lose a level, so if it's
+      already above the cap there's no way it fits). Leave it blank if you don't know it -- without CP the
+      normal theoretical ceiling is evaluated instead.<br><br>
+      The colored box is the verdict for <b>THAT specific Pokémon with ITS IVs</b> (the ones you typed above):
+      green = viable for PvP, red = not viable, blue = favorite and also viable, orange = favorite but not
+      viable. Below, in small gray text, the <b>species' overall ideal target</b> shows up separately (the
+      best possible spread, not always 15/15/15) -- that's a fixed reference for the species, it doesn't
+      depend on the IVs you typed.<br><br>
+      If the Pokémon does NOT qualify as meta-relevant in any league, it still shows in red
+      <b>its best result for its own species</b> (without the meta filter), so you know if the IV itself is
+      good even if the species isn't currently meta. Check <b>⭐ Favorite</b> if you also want to skip the
+      meta filter entirely and see any league where it performs decently, even if the species isn't truly
+      top-tier right now.<br><br>
+      Check <b>🌑 Shadow</b> if the Pokémon is Shadow (from Team GO Rocket) -- its own CP and IV rank do NOT
+      change (the +20% attack and −16.7% defense cancel out exactly in that calculation), but its <b>meta</b>
+      rank can change quite a bit (uses PvPoke's real shadow ranking when it exists), and it hits ~20% harder
+      in PvE. <b>Purified doesn't need a checkbox</b>: purifying already bumps the IVs and level once in-game
+      -- just type the IVs/CP you currently see on your already-purified Pokémon.<br><br>
+      The "best level" shown in the verdict is the <b>theoretical ceiling</b> for that IV -- if your Pokémon
+      is already at a higher level, it can't go down, it's just a reference. This version evaluates PvP and
+      Hundo/Nundo; it doesn't include XXL/XXS or Best Buddy display size (that needs exact height/weight,
+      which this version doesn't ask for). PvPoke data is cached for 12h in this browser so it doesn't have
+      to re-download ~2MB every time you open the page.`,
+    pokedex_reiniciar: "🔄 Reset", pokedex_buscar_placeholder: "Search species...",
+    pokedex_todas_gen: "All generations", pokedex_todos_tipos: "All types",
+    pokedex_ocultar_no_tengo: "Hide the ones I don't have",
+    pokedex_intro: "Everything starts as a ghost -- click each Pokémon you already own to mark it. This is NOT saved: reloading the page resets it.",
+    gen_label: (n) => `Gen ${n}`,
+    subtab_incursiones: "Raids", subtab_rocket: "Team GO Rocket",
+    guia_incursiones_nota: `These recommendations are built on the fly from what you marked in your
+      <b>Pokédex</b> (previous tab) -- it assumes every marked Pokémon is a hundo or at least 97% IV, since
+      this page doesn't store real IVs. For each boss type, your best possible attacker is picked (highest
+      base Attack among the ones that deal super effective damage); if you have nothing ideal for that type,
+      we show the "least bad" option from what you did mark.`,
+    guia_rocket_nota: `Same as above, this uses what you marked in your <b>Pokédex</b> -- assumes hundo or at
+      least 97% IV. The recruit's <b>line</b> tells you the type before you enter -- use that hint to pick
+      which of your marked Pokémon to bring.`,
+    th_tipo_jefe: "Boss type", th_mejor_atacante: "Your best marked attacker",
+    th_frase_tema: "Line / theme", th_pokemon_tipicos: "Typical Pokémon", th_mejor_opcion: "Your best marked option",
+    msg_sin_marcar: "You haven't marked any Pokémon in your Pokédex yet -- go to the 📖 Pokédex tab and mark the ones you have.",
+    tema_iniciales: "starters/Snorlax/Lapras", tema_senuelo: "decoy",
+    rocket_frases: [`Normal does not mean weak.`, `Do you know how hot Pokémon fire breath can get?`, `These waters are treacherous!`, `Get ready to be shocked!`, `Don't tangle with us!`, `You're gonna be frozen in your tracks.`, `This buff physique isn't just for show!`, `Coiled and ready to strike!`, `You'll be defeated into the ground!`, `Battle against my Flying-type Pokémon!`, `Are you scared of psychics that use unseen power?`, `Go, my super bug Pokémon!`, `Let's rock and roll!`, `Ke...ke...ke...ke...ke...ke!`, `ROAR! ...How'd that sound?`, `Wherever there is light, there is also shadow.`, `You're no match for my iron will!`, `Check out my cute Pokémon!`, `Winning is for winners.`, `Fooled ya, twerp!`],
+    menos_peor_tipo: (tipo) => `(least bad -- nothing dedicated to ${tipo})`,
+    menos_peor: "(least bad)",
+    no_reconozco: (especie) => `I don't recognize "${especie}" -- check how you typed it (the English name usually works better).`,
+    completa_ivs: "Fill in all 3 IVs to see the verdict for THIS Pokémon...",
+    evaluando: "Evaluating...",
+    error_evaluando: (msg) => `Error evaluating: ${msg}`,
+    hundo_tag: "💯 HUNDO 100%", nundo_tag: "💀 NUNDO 0%", shadow_tag: "🌑 Shadow",
+    apto_para: (liga) => `✅ Viable for ${liga}`,
+    evolucionado_a: (especie) => ` -- evolved into ${especie}`,
+    evolucionado_a_corto: (especie) => ` [evolved into ${especie}]`,
+    no_apto_ahora: "❌ Not viable for PvP right now",
+    liga_linea: (liga, evoTxt, rank, total, percent, globalRank, globalTotal, cp, nivel) =>
+      `${liga}${evoTxt}: #${rank}/${total} own rank (${percent}%), Top ${globalRank ?? "?"}/${globalTotal} in meta -- CP ${cp}, Level ${nivel}`,
+    mas_ligas: (n) => `(+${n} more league(s)/cup(s))`,
+    shadow_nota: (atk, def) => `🌑 Shadow: effective Attack ~${atk} (+20%), effective Defense ~${def} (−16.7%) in real battle. `
+      + `Its own CP and IV rank do NOT change (those two multipliers cancel out exactly in that calculation); `
+      + `what DOES change is the meta rank above (uses PvPoke's real shadow ranking when it exists) and it hits ~20% harder in PvE.`,
+    shadow_no_elegible: " (Heads up: this species doesn't look shadow-eligible per PvPoke -- double check it's really Shadow.)",
+    pc_nota: (cp, ligas) => `📈 At CP ${cp} you've already gone over the cap for: ${ligas} -- not shown for this Pokémon (it can't lose a level).`,
+    mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
+      `Its best own result: ${especie}${evoTxt} in ${liga}: #${rank}/${total} own rank (${percent}%) -- ${metaTxt}.`,
+    evolucionado_paren: " (evolved)",
+    especie_top_meta: (rank, total) => `species #${rank}/${total} in the current meta`,
+    especie_fuera_meta: "species outside the current meta ranking",
+    no_se_pudo_evaluar: (nota) => `Couldn't evaluate any league for this Pokémon (species with no PvPoke data?)${nota}.`,
+    revisa_pc_imposible: " -- check that the CP isn't impossible for these IVs",
+    ideal_titulo: "🎯 Species' ideal target (doesn't depend on your IVs, only on ⭐ Favorite / 🌑 Shadow):",
+    ideal_vacio: "(this species isn't meta-relevant in the current PvP meta in any league/cup)",
+    ideal_hundo: "💯 Hundo: 15/15/15",
+    ideal_linea: (especie, liga, atk, def, hp, cp, nivel, metaTxt) =>
+      `🎯 ${especie} in ${liga}: ${atk}/${def}/${hp} (CP ${cp}, level ${nivel}, ${metaTxt})`,
+    top_del_meta: (rank, total) => `Top ${rank}/${total} in meta`,
+    fuera_ranking_meta: "outside the current meta ranking",
+    cargando_niveles: "Loading level multiplier table...",
+    cargando_ranking: (liga) => `Loading ${liga} ranking...`,
+    error_carga: (msg) => `Couldn't load PvPoke (no internet?): ${msg}. Check your connection and reload the page.`,
+    comparacion_mejor: (n, especie, score, liga) => `🏆 The best of your ${n} ${especie} marked here -- ${score}% own IV rank (best in ${liga})`,
+    comparacion_peor: (especie, score) => `⬇️ You have a better ${especie} above -- this one is at ${score}% own IV rank`,
+    no_lanzado_title: "Not released in Pokémon GO yet",
+    marcados_resumen: (n, total, filtroTxt, soloTxt) => `${n} / ${total} marked${filtroTxt}${soloTxt}. Click a Pokémon to mark/unmark it.`,
+    con_filtro_actual: " (with the current filter)",
+    mostrando_solo_marcados: (n) => ` -- showing only the marked ones (${n})`,
+    idioma_selector_title: "Language",
+  },
+
+  pt: {
+    liga_label: { little: "Copa Mirim", great: "Liga Grande", ultra: "Liga Ultra", master: "Liga Mestra",
+      weather: "Copa do Clima", evolution: "Copa Evolução", catch: "Copa Captura",
+      scroll: "Copa Pergaminho", premier: "Copa Premier", mega: "Liga Mestra Mega" },
+    tipo_label: { normal: "Normal", fire: "Fogo", water: "Água", electric: "Elétrico", grass: "Planta",
+      ice: "Gelo", fighting: "Lutador", poison: "Venenoso", ground: "Terrestre", flying: "Voador",
+      psychic: "Psíquico", bug: "Inseto", rock: "Pedra", ghost: "Fantasma", dragon: "Dragão",
+      dark: "Sombrio", steel: "Aço", fairy: "Fada" },
+    header_titulo: "Avaliador de Pokémon",
+    header_sub: "Digite espécie + IVs de um pokémon que você já capturou (os dados que você vê no jogo) e o veredito aparece sozinho -- top PvP, hundo/nundo, ou nada de especial. Tudo roda neste navegador, sem instalar nada nem salvar nenhum arquivo em nenhum servidor.",
+    cargando_inicial: "Carregando dados do PvPoke (espécies, tabela de níveis, rankings)...",
+    tab_evaluador: "Avaliador", tab_pokedex: "📖 Pokédex", tab_guias: "📋 Guias",
+    btn_agregar: "+ Adicionar Pokémon", btn_vaciar: "🗑️ Limpar tudo", guardado: "Salvo ✓",
+    contador: (n) => `${n} pokémon`,
+    label_especie: "Espécie", placeholder_especie: "ex. Umbreon", title_borrar_especie: "Limpar espécie",
+    label_favorito: "⭐ Favorito", label_shadow: "🌑 Shadow", title_borrar: "Excluir",
+    label_atk: "Atq", label_def: "Def", label_hp: "PS", label_pc: "CP (nota)",
+    completa_especie_ivs: "Preencha espécie + os 3 IVs...",
+    cargando_motor: "Carregando motor de PvP...",
+    ayuda_html: `<b>O CP (Pontos de Combate) SIM afeta o veredito</b>: se o CP atual do seu Pokémon já
+      ultrapassou o teto de uma liga, essa liga é descartada de verdade (um Pokémon nunca perde nível, então
+      se já está acima do teto não há como entrar). Deixe em branco se não souber -- sem CP é avaliado o teto
+      teórico normal.<br><br>
+      O quadro colorido é o veredito <b>DESSE exemplar com SEUS IVs</b> (o que você digitou acima): verde =
+      apto para PvP, vermelho = não apto, azul = favorito e também apto, laranja = favorito mas não apto.
+      Abaixo, em cinza e letra miúda, aparece separado o <b>objetivo ideal da espécie em geral</b> (o melhor
+      spread possível, nem sempre 15/15/15) -- isso é uma referência fixa da espécie, não depende dos IVs que
+      você digitou.<br><br>
+      Se o exemplar NÃO se qualifica como top do meta em nenhuma liga, ainda assim mostra em vermelho
+      <b>seu melhor resultado para a própria espécie</b> (sem o filtro de meta), para você saber se o IV em
+      si é bom mesmo que a espécie não esteja em alta. Marque <b>⭐ Favorito</b> se quiser também pular o
+      filtro de meta por completo e ver qualquer liga onde ele participe decentemente, mesmo que a espécie
+      não seja top real agora.<br><br>
+      Marque <b>🌑 Shadow</b> se o exemplar for shadow (vindo do Team GO Rocket) -- o CP e o rank de IV da
+      própria espécie NÃO mudam (o +20% de ataque e −16,7% de defesa se cancelam exatamente nesse cálculo),
+      mas o rank de <b>meta</b> pode mudar bastante (usa o ranking shadow real do PvPoke quando existe), e no
+      PvE bate ~20% mais forte. <b>Purificado não precisa de caixinha</b>: a purificação já aumenta os IVs e o
+      nível de uma vez só no jogo -- basta digitar os IVs/CP que você vê agora no seu Pokémon já purificado.<br><br>
+      O "melhor nível" que aparece no veredito é o <b>teto teórico</b> para esse IV -- se seu pokémon já está
+      em um nível mais alto, não dá pra baixar, é só referência. Esta versão avalia PvP e Hundo/Nundo; não
+      inclui XXL/XXS nem Exibição (isso precisa de altura/peso exatos, que esta versão não pede). Os dados do
+      PvPoke ficam em cache por 12h neste navegador para não baixar de novo ~2MB toda vez que você abrir a
+      página.`,
+    pokedex_reiniciar: "🔄 Reiniciar", pokedex_buscar_placeholder: "Buscar espécie...",
+    pokedex_todas_gen: "Todas as gerações", pokedex_todos_tipos: "Todos os tipos",
+    pokedex_ocultar_no_tengo: "Ocultar os que não tenho",
+    pokedex_intro: "Todos começam como fantasma -- clique em cada Pokémon que você já tem para marcá-lo. Isso NÃO é salvo: se recarregar a página, reinicia.",
+    gen_label: (n) => `Ger ${n}`,
+    subtab_incursiones: "Raids", subtab_rocket: "Team GO Rocket",
+    guia_incursiones_nota: `Essas recomendações são montadas na hora com o que você marcou na sua
+      <b>Pokédex</b> (aba anterior) -- assume-se que cada Pokémon marcado é hundo ou tem pelo menos 97% de IV,
+      já que esta página não guarda IVs reais. Para cada tipo de chefe é escolhido seu melhor atacante
+      possível (maior Ataque base entre os que causam dano super efetivo); se você não tem nada ideal para
+      esse tipo, mostramos o "menos ruim" do que você marcou.`,
+    guia_rocket_nota: `Igual ao de cima, isso usa o que você marcou na sua <b>Pokédex</b> -- assume-se hundo ou
+      pelo menos 97% de IV. A <b>frase</b> do recruta diz o tipo antes de você entrar; use essa dica para
+      escolher qual dos seus Pokémon marcados usar.`,
+    th_tipo_jefe: "Tipo do chefe", th_mejor_atacante: "Seu melhor atacante marcado",
+    th_frase_tema: "Frase / tema", th_pokemon_tipicos: "Pokémon típicos", th_mejor_opcion: "Sua melhor opção marcada",
+    msg_sin_marcar: "Você ainda não marcou nenhum Pokémon na sua Pokédex -- vá até a aba 📖 Pokédex e marque os que você já tem.",
+    tema_iniciales: "iniciais/Snorlax/Lapras", tema_senuelo: "chamariz",
+    rocket_frases: [`Normal não significa fraco.`, `Você sabe o quão quente pode ficar o fogo de um Pokémon?`, `Estas águas são traiçoeiras!`, `Prepare-se para levar um choque!`, `Não se meta com a gente!`, `Você vai ficar congelado no lugar.`, `Este físico não é só pra decorar!`, `Enrolados e prontos pra atacar!`, `Você vai ser derrotado até o chão!`, `Batalhe contra meus Pokémon do tipo Voador!`, `Tem medo de psíquicos que usam poder invisível?`, `Vai, meu super Pokémon inseto!`, `Vamos chacoalhar!`, `Ke...ke...ke...ke...ke...ke!`, `ROAR! ...Como que soou isso?`, `Onde há luz, também há sombra.`, `Você não é páreo pra minha vontade de ferro!`, `Olha só meu Pokémon fofo!`, `Vencer é para vencedores.`, `Te enganei, trouxa!`],
+    menos_peor_tipo: (tipo) => `(menos ruim -- nada dedicado a ${tipo})`,
+    menos_peor: "(menos ruim)",
+    no_reconozco: (especie) => `Não reconheço "${especie}" -- confira como você escreveu (o nome em inglês costuma funcionar melhor).`,
+    completa_ivs: "Preencha os 3 IVs para ver o veredito DESTE exemplar...",
+    evaluando: "Avaliando...",
+    error_evaluando: (msg) => `Erro ao avaliar: ${msg}`,
+    hundo_tag: "💯 HUNDO 100%", nundo_tag: "💀 NUNDO 0%", shadow_tag: "🌑 Shadow",
+    apto_para: (liga) => `✅ Apto para ${liga}`,
+    evolucionado_a: (especie) => ` -- evoluído para ${especie}`,
+    evolucionado_a_corto: (especie) => ` [evoluído para ${especie}]`,
+    no_apto_ahora: "❌ Não apto para PvP agora",
+    liga_linea: (liga, evoTxt, rank, total, percent, globalRank, globalTotal, cp, nivel) =>
+      `${liga}${evoTxt}: #${rank}/${total} próprio (${percent}%), Top ${globalRank ?? "?"}/${globalTotal} do meta -- CP ${cp}, Nível ${nivel}`,
+    mas_ligas: (n) => `(+${n} liga(s)/copa(s) a mais)`,
+    shadow_nota: (atk, def) => `🌑 Shadow: Ataque efetivo ~${atk} (+20%), Defesa efetiva ~${def} (−16,7%) em batalha real. `
+      + `O CP e o rank de IV da própria espécie NÃO mudam (esses dois multiplicadores se cancelam exatamente nesse cálculo); `
+      + `o que muda é o rank de meta acima (usa o ranking shadow real do PvPoke quando existe) e que no PvE bate ~20% mais forte.`,
+    shadow_no_elegible: " (Atenção: essa espécie não parece ser shadow-elegível segundo o PvPoke -- confira se é realmente shadow.)",
+    pc_nota: (cp, ligas) => `📈 Com CP ${cp} você já ultrapassou o teto de: ${ligas} -- não são mostradas para este exemplar (não é possível baixar de nível).`,
+    mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
+      `Seu melhor resultado próprio: ${especie}${evoTxt} em ${liga}: #${rank}/${total} próprio (${percent}%) -- ${metaTxt}.`,
+    evolucionado_paren: " (evoluído)",
+    especie_top_meta: (rank, total) => `espécie #${rank}/${total} do meta atual`,
+    especie_fuera_meta: "espécie fora do ranking do meta atual",
+    no_se_pudo_evaluar: (nota) => `Não foi possível avaliar nenhuma liga para este exemplar (espécie sem dados do PvPoke?)${nota}.`,
+    revisa_pc_imposible: " -- confira se o CP não é impossível para esses IVs",
+    ideal_titulo: "🎯 Objetivo ideal da espécie (não depende dos seus IVs, só de ⭐ Favorito / 🌑 Shadow):",
+    ideal_vacio: "(essa espécie não se destaca no meta atual de PvP em nenhuma liga/copa)",
+    ideal_hundo: "💯 Hundo: 15/15/15",
+    ideal_linea: (especie, liga, atk, def, hp, cp, nivel, metaTxt) =>
+      `🎯 ${especie} em ${liga}: ${atk}/${def}/${hp} (CP ${cp}, nível ${nivel}, ${metaTxt})`,
+    top_del_meta: (rank, total) => `Top ${rank}/${total} do meta`,
+    fuera_ranking_meta: "fora do ranking do meta atual",
+    cargando_niveles: "Carregando tabela de multiplicadores de nível...",
+    cargando_ranking: (liga) => `Carregando ranking de ${liga}...`,
+    error_carga: (msg) => `Não foi possível carregar o PvPoke (sem internet?): ${msg}. Confira sua conexão e recarregue a página.`,
+    comparacion_mejor: (n, especie, score, liga) => `🏆 O melhor dos seus ${n} ${especie} marcados aqui -- ${score}% IV próprio (melhor em ${liga})`,
+    comparacion_peor: (especie, score) => `⬇️ Você tem outro ${especie} melhor acima -- este ficou em ${score}% IV próprio`,
+    no_lanzado_title: "Ainda não existe em Pokémon GO",
+    marcados_resumen: (n, total, filtroTxt, soloTxt) => `${n} / ${total} marcados${filtroTxt}${soloTxt}. Clique em um Pokémon para marcar/desmarcar.`,
+    con_filtro_actual: " (com o filtro atual)",
+    mostrando_solo_marcados: (n) => ` -- mostrando só os marcados (${n})`,
+    idioma_selector_title: "Idioma",
+  },
+};
+
 const LEAGUE_URLS = {
   little: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/little/overall/rankings-500.json",
   great: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/all/overall/rankings-1500.json",
@@ -324,11 +787,10 @@ const LEAGUE_CP_CAPS = {
   little: 500, great: 1500, ultra: 2500, master: 10000,
   weather: 1500, evolution: 1500, catch: 1500, scroll: 1500, premier: 10000, mega: 10000,
 };
-const LEAGUE_LABEL = {
-  little: "Copa Chica", great: "Liga Super", ultra: "Liga Ultra", master: "Liga Maestra",
-  weather: "Copa del Tiempo", evolution: "Copa Evolución", catch: "Copa Captura",
-  scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Master Mega",
-};
+// Proxy en vez de objeto fijo -- así LEAGUE_LABEL[liga] siempre lee la
+// traducción del idioma ACTIVO en el momento de usarse, sin tener que
+// tocar cada lugar donde ya se llama LEAGUE_LABEL[x].
+const LEAGUE_LABEL = new Proxy({}, { get: (_, liga) => (I18N[idioma].liga_label || {})[liga] });
 const IV_POTENTIAL_LEAGUES = ["little", "great", "ultra", "master", "weather", "evolution", "catch", "scroll", "premier", "mega"];
 const IV_POTENTIAL_TOP_N = 5;
 const IV_POTENTIAL_MAX_LEVEL = 50.0;
@@ -400,11 +862,11 @@ async function inicializarMotor() {
   const gamemaster = await fetchJsonCacheado("pokealert_gamemaster_v1", GAMEMASTER_URL);
   pokemonIndex = buildPokemonIndex(gamemaster);
 
-  textoCarga.textContent = "Cargando tabla de multiplicadores de nivel...";
+  textoCarga.textContent = t("cargando_niveles");
   cpms = await cargarCpms();
 
   for (const liga of IV_POTENTIAL_LEAGUES) {
-    textoCarga.textContent = `Cargando ranking de ${LEAGUE_LABEL[liga]}...`;
+    textoCarga.textContent = t("cargando_ranking", LEAGUE_LABEL[liga]);
     const data = await fetchJsonCacheado(`pokealert_rankings_${liga}_v1`, LEAGUE_URLS[liga]);
     rankingsPorLiga[liga] = [...data].sort((a, b) => (b.score || 0) - (a.score || 0));
   }
@@ -611,21 +1073,21 @@ function formatearIdeal(especieNombre, esFavorito, esShadow) {
   const candidatos = previsualizarIdeal(especieNombre, esFavorito, esShadow);
   if (candidatos === null) return "";
 
-  const lineas = [`💯 Hundo: 15/15/15`];
+  const lineas = [t("ideal_hundo")];
   candidatos.forEach((c) => {
     const liga = LEAGUE_LABEL[c.league] || c.league;
-    const metaTxt = c.globalRank ? `Top ${c.globalRank}/${c.globalTotal} del meta` : `fuera del ranking del meta actual`;
-    lineas.push(`🎯 ${c.speciesName} en ${liga}: ${c.atk}/${c.def}/${c.hp} (PC ${c.cp}, nivel ${c.level}, ${metaTxt})`);
+    const metaTxt = c.globalRank ? t("top_del_meta", c.globalRank, c.globalTotal) : t("fuera_ranking_meta");
+    lineas.push(t("ideal_linea", c.speciesName, liga, c.atk, c.def, c.hp, c.cp, c.level, metaTxt));
   });
   if (candidatos.length === 0) {
-    lineas.push(`(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)`);
+    lineas.push(t("ideal_vacio"));
   }
   return lineas.join("\n");
 }
 
 function evaluarPvPCompleto(especieNombre, atkIv, defIv, staIv, esFavorito, esShadow, cpActual) {
   const speciesId = resolveSpeciesId(especieNombre);
-  if (!speciesId) return { error: `No reconozco "${especieNombre}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).` };
+  if (!speciesId) return { error: t("no_reconozco", especieNombre) };
 
   // El PC que escribiste es el de la especie TAL COMO la atrapaste (no la
   // evolucionada) -- fija el nivel real mínimo, que no cambia al evolucionar.
@@ -672,13 +1134,13 @@ function evaluarPvPCompleto(especieNombre, atkIv, defIv, staIv, esFavorito, esSh
 
 function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, esShadow, cpActual) {
   const speciesId = resolveSpeciesId(especieNombre);
-  if (!speciesId) return { error: `No reconozco "${especieNombre}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).` };
+  if (!speciesId) return { error: t("no_reconozco", especieNombre) };
   const nombreBase = (pokemonIndex[speciesId] && pokemonIndex[speciesId].speciesName) || especieNombre;
 
   const etiquetas = [];
-  if (atkIv === 15 && defIv === 15 && hpIv === 15) etiquetas.push("💯 HUNDO 100%");
-  if (atkIv === 0 && defIv === 0 && hpIv === 0) etiquetas.push("💀 NUNDO 0%");
-  if (esShadow) etiquetas.push("🌑 Shadow");
+  if (atkIv === 15 && defIv === 15 && hpIv === 15) etiquetas.push(t("hundo_tag"));
+  if (atkIv === 0 && defIv === 0 && hpIv === 0) etiquetas.push(t("nundo_tag"));
+  if (esShadow) etiquetas.push(t("shadow_tag"));
 
   let notaShadow = "";
   if (esShadow) {
@@ -688,10 +1150,7 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
     if (stats) {
       const atkEfectivo = Math.round((stats.atk + atkIv) * SHADOW_ATK_MULT * 10) / 10;
       const defEfectiva = Math.round((stats.def + defIv) * SHADOW_DEF_MULT * 10) / 10;
-      notaShadow = `🌑 Shadow: Ataque efectivo ~${atkEfectivo} (+20%), Defensa efectiva ~${defEfectiva} (−16.7%) en batalla real. `
-        + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan en ese cálculo); `
-        + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`
-        + (elegible === false ? ` (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- revisa si de verdad es shadow.)` : "");
+      notaShadow = t("shadow_nota", atkEfectivo, defEfectiva) + (elegible === false ? t("shadow_no_elegible") : "");
     }
   }
 
@@ -702,7 +1161,7 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
   if (cpActual && cpActual > 0) {
     const ligasSuperadas = [...new Set(IV_POTENTIAL_LEAGUES.filter(l => LEAGUE_CP_CAPS[l] < cpActual).map(l => LEAGUE_LABEL[l] || l))];
     if (ligasSuperadas.length) {
-      notaPC = `📈 Con PC ${cpActual} ya superaste el tope de: ${ligasSuperadas.join(", ")} -- no se muestran para este ejemplar (no se puede bajar de nivel).`;
+      notaPC = t("pc_nota", cpActual, ligasSuperadas.join(", "));
     }
   }
 
@@ -713,29 +1172,29 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
     const necesitaEvolucion = mejor.speciesName.toLowerCase() !== nombreBase.toLowerCase();
     const liga = LEAGUE_LABEL[mejor.league] || mejor.league;
     colorClase = esFavorito ? "estado-azul" : "estado-verde";
-    titulo = `✅ Apto para ${liga}` + (necesitaEvolucion ? ` -- evolucionado a ${mejor.speciesName}` : "");
+    titulo = t("apto_para", liga) + (necesitaEvolucion ? t("evolucionado_a", mejor.speciesName) : "");
     const lineas = topMeta.slice(0, 4).map(m => {
       const l = LEAGUE_LABEL[m.league] || m.league;
-      const evoTxt = (m.speciesName.toLowerCase() !== nombreBase.toLowerCase()) ? ` [evolucionado a ${m.speciesName}]` : "";
-      return `${l}${evoTxt}: #${m.rank}/${m.total} propio (${m.percent}%), Top ${m.globalRank ?? "?"}/${m.globalTotal} del meta -- PC ${m.cp}, Nivel ${m.level}`;
+      const evoTxt = (m.speciesName.toLowerCase() !== nombreBase.toLowerCase()) ? t("evolucionado_a_corto", m.speciesName) : "";
+      return t("liga_linea", l, evoTxt, m.rank, m.total, m.percent, m.globalRank, m.globalTotal, m.cp, m.level);
     });
-    if (topMeta.length > 4) lineas.push(`(+${topMeta.length - 4} liga(s)/copa(s) más)`);
+    if (topMeta.length > 4) lineas.push(t("mas_ligas", topMeta.length - 4));
     if (notaShadow) lineas.push(notaShadow);
     if (notaPC) lineas.push(notaPC);
     detalle = lineas.join("\n");
   } else {
     colorClase = esFavorito ? "estado-naranja" : "estado-rojo";
-    titulo = `❌ No apto para PvP ahora mismo`;
+    titulo = t("no_apto_ahora");
     if (mejorPropio) {
       const liga = LEAGUE_LABEL[mejorPropio.league] || mejorPropio.league;
       const necesitaEvolucion = mejorPropio.speciesName.toLowerCase() !== nombreBase.toLowerCase();
       const metaTxt = mejorPropio.globalRank
-        ? `especie #${mejorPropio.globalRank}/${mejorPropio.globalTotal} del meta actual`
-        : `especie fuera del ranking del meta actual`;
-      detalle = `Su mejor resultado propio: ${mejorPropio.speciesName}${necesitaEvolucion ? " (evolucionado)" : ""} en ${liga}: `
-        + `#${mejorPropio.rank}/${mejorPropio.total} propio (${mejorPropio.percent}%) -- ${metaTxt}.`;
+        ? t("especie_top_meta", mejorPropio.globalRank, mejorPropio.globalTotal)
+        : t("especie_fuera_meta");
+      detalle = t("mejor_resultado_propio", mejorPropio.speciesName, necesitaEvolucion ? t("evolucionado_paren") : "",
+        liga, mejorPropio.rank, mejorPropio.total, mejorPropio.percent, metaTxt);
     } else {
-      detalle = `No se pudo evaluar ninguna liga para este ejemplar (¿especie sin datos de PvPoke?)${cpActual ? " -- revisa que el PC no sea imposible para estos IVs" : ""}.`;
+      detalle = t("no_se_pudo_evaluar", cpActual ? t("revisa_pc_imposible") : "");
     }
     if (notaPC) detalle += `\n${notaPC}`;
     if (notaShadow) detalle += `\n${notaShadow}`;
@@ -797,8 +1256,8 @@ function actualizarComparaciones() {
     el.style.display = "";
     el.className = "tarjeta-comparacion " + (esMejor ? "comparacion-mejor" : "comparacion-peor");
     el.textContent = esMejor
-      ? `🏆 El mejor de tus ${grupo.length} ${f.pokemon.trim()} marcados aquí -- ${f._score}% IV propio (mejor en ${f._scoreLiga})`
-      : `⬇️ Tienes otro ${f.pokemon.trim()} mejor arriba -- este quedó en ${f._score}% IV propio`;
+      ? t("comparacion_mejor", grupo.length, f.pokemon.trim(), f._score, f._scoreLiga)
+      : t("comparacion_peor", f.pokemon.trim(), f._score);
   });
 }
 
@@ -848,7 +1307,7 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
   actualizarSprite(fila, elSprite);
   const especie = fila.pokemon.trim();
   if (!especie) {
-    elVeredicto.textContent = "Completa especie + los 3 IVs...";
+    elVeredicto.textContent = t("completa_especie_ivs");
     elVeredicto.className = "veredicto-caja vacio";
     fila.veredicto = "";
     fila._score = null;
@@ -858,7 +1317,7 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
   const atk = parseInt(fila.iv_atk, 10), def = parseInt(fila.iv_def, 10), hp = parseInt(fila.iv_hp, 10);
   const ivsCompletos = !isNaN(atk) && !isNaN(def) && !isNaN(hp);
 
-  elVeredicto.textContent = "Evaluando...";
+  elVeredicto.textContent = t("evaluando");
   elVeredicto.className = "veredicto-caja cargando";
 
   clearTimeout(debounceTimers.get(fila.id));
@@ -866,7 +1325,7 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
     try {
       const ideal = formatearIdeal(especie, !!fila.favorito, !!fila.shadow);
       if (!ideal) {
-        elVeredicto.textContent = `No reconozco "${especie}" -- revisa cómo lo escribiste (nombre en inglés suele funcionar mejor).`;
+        elVeredicto.textContent = t("no_reconozco", especie);
         elVeredicto.className = "veredicto-caja error";
         fila.veredicto = "";
         fila._score = null;
@@ -874,11 +1333,11 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
         guardarLocalStorage();
         return;
       }
-      const idealSinHundo = ideal.split("\n").filter(l => !l.startsWith("💯 Hundo")).join("\n");
-      const idealHtml = `<div class="veredicto-ideal"><b class="titulo-seccion">🎯 Objetivo ideal de la especie (no depende de tus IVs, solo de ⭐ Favorito / 🌑 Shadow):</b>\n${idealSinHundo || "(esta especie no destaca en el meta actual de PvP en ninguna liga/copa)"}</div>`;
+      const idealSinHundo = ideal.split("\n").filter(l => !l.startsWith("💯")).join("\n");
+      const idealHtml = `<div class="veredicto-ideal"><b class="titulo-seccion">${t("ideal_titulo")}</b>\n${idealSinHundo || t("ideal_vacio")}</div>`;
 
       if (!ivsCompletos) {
-        elVeredicto.innerHTML = `<div class="veredicto-detalle">Completa los 3 IVs para ver el veredicto de ESTE ejemplar...</div>${idealHtml}`;
+        elVeredicto.innerHTML = `<div class="veredicto-detalle">${t("completa_ivs")}</div>${idealHtml}`;
         elVeredicto.className = "veredicto-caja vacio";
         fila.veredicto = "";
         fila._score = null;
@@ -912,7 +1371,7 @@ function actualizarVeredictoUI(fila, elVeredicto, elSprite) {
       fila._scoreLiga = resultado.scoreComparacion ? resultado.scoreComparacion.liga : null;
       actualizarComparaciones();
     } catch (e) {
-      elVeredicto.textContent = `Error evaluando: ${e.message}`;
+      elVeredicto.textContent = t("error_evaluando", e.message);
       elVeredicto.className = "veredicto-caja error";
       fila._score = null;
       actualizarComparaciones();
@@ -995,31 +1454,31 @@ function render() {
         <div class="tarjeta-datos">
           <div class="fila-superior">
             <div class="campo campo-especie">
-              <label>Especie</label>
+              <label>${t("label_especie")}</label>
               <div class="especie-input-wrap">
-                <input class="especie" value="${fila.pokemon}" placeholder="ej. Umbreon" autocomplete="off">
-                <button type="button" class="btn-limpiar-especie" title="Borrar especie" style="${fila.pokemon ? "" : "display:none;"}">✕</button>
+                <input class="especie" value="${fila.pokemon}" placeholder="${t("placeholder_especie")}" autocomplete="off">
+                <button type="button" class="btn-limpiar-especie" title="${t("title_borrar_especie")}" style="${fila.pokemon ? "" : "display:none;"}">✕</button>
               </div>
               <ul class="lista-sugerencias"></ul>
             </div>
             <label class="favorito-toggle">
-              <input type="checkbox" class="favorito" ${fila.favorito ? "checked" : ""}> ⭐ Favorito
+              <input type="checkbox" class="favorito" ${fila.favorito ? "checked" : ""}> ${t("label_favorito")}
             </label>
             <label class="favorito-toggle shadow-toggle">
-              <input type="checkbox" class="shadow" ${fila.shadow ? "checked" : ""}> 🌑 Shadow
+              <input type="checkbox" class="shadow" ${fila.shadow ? "checked" : ""}> ${t("label_shadow")}
             </label>
-            <button class="btn-borrar" title="Borrar">✕</button>
+            <button class="btn-borrar" title="${t("title_borrar")}">✕</button>
           </div>
           <div class="fila-ivs">
-            <div class="campo campo-iv"><label>Atk</label><input type="number" min="0" max="15" data-campo="iv_atk" value="${fila.iv_atk}"></div>
-            <div class="campo campo-iv"><label>Def</label><input type="number" min="0" max="15" data-campo="iv_def" value="${fila.iv_def}"></div>
-            <div class="campo campo-iv"><label>HP</label><input type="number" min="0" max="15" data-campo="iv_hp" value="${fila.iv_hp}"></div>
-            <div class="campo campo-cp"><label>PC (nota)</label><input type="number" data-campo="cp" value="${fila.cp}"></div>
+            <div class="campo campo-iv"><label>${t("label_atk")}</label><input type="number" min="0" max="15" data-campo="iv_atk" value="${fila.iv_atk}"></div>
+            <div class="campo campo-iv"><label>${t("label_def")}</label><input type="number" min="0" max="15" data-campo="iv_def" value="${fila.iv_def}"></div>
+            <div class="campo campo-iv"><label>${t("label_hp")}</label><input type="number" min="0" max="15" data-campo="iv_hp" value="${fila.iv_hp}"></div>
+            <div class="campo campo-cp"><label>${t("label_pc")}</label><input type="number" data-campo="cp" value="${fila.cp}"></div>
           </div>
         </div>
       </div>
       <div class="tarjeta-comparacion" style="display:none;"></div>
-      <div class="veredicto-caja vacio">Completa especie + los 3 IVs...</div>
+      <div class="veredicto-caja vacio">${t("completa_especie_ivs")}</div>
     `;
     const elVeredicto = div.querySelector(".veredicto-caja");
     const elSprite = div.querySelector(".sprite-wrap");
@@ -1064,10 +1523,10 @@ function render() {
     actualizarSprite(fila, elSprite);
     if (fila.pokemon.trim()) {
       if (motorListo) actualizarVeredictoUI(fila, elVeredicto, elSprite);
-      else { elVeredicto.textContent = "Cargando motor de PvP..."; elVeredicto.className = "veredicto-caja cargando"; }
+      else { elVeredicto.textContent = t("cargando_motor"); elVeredicto.className = "veredicto-caja cargando"; }
     }
   });
-  contador.textContent = `${filas.length} pokémon`;
+  contador.textContent = t("contador", filas.length);
 }
 
 document.getElementById("btn-agregar").addEventListener("click", () => {
@@ -1103,12 +1562,7 @@ const GEN_RANGES = [
 function generacionDeDex(dex) {
   return (GEN_RANGES.find(r => dex >= r.desde && dex <= r.hasta) || {}).gen ?? null;
 }
-const TIPO_LABEL = {
-  normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
-  ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
-  psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
-  dark: "Siniestro", steel: "Acero", fairy: "Hada",
-};
+const TIPO_LABEL = new Proxy({}, { get: (_, tipo) => (I18N[idioma].tipo_label || {})[tipo] });
 
 // Acá NO hay import de CSV ni localStorage a propósito -- es una página para
 // compartir con cualquiera, así que el "ya lo tengo" se marca con clic
@@ -1152,27 +1606,33 @@ function construirDexOrdenados() {
 }
 
 function poblarSelectsPokedex() {
+  // Se limpia y reconstruye siempre (no solo la primera vez) -- así al
+  // cambiar de idioma estas opciones dinámicas (Gen/Tipo) también quedan
+  // traducidas, no solo el texto fijo del resto de la página.
   const selGen = document.getElementById("pokedex-gen");
-  if (selGen.options.length <= 1) {
-    for (const { gen } of GEN_RANGES) {
-      const opt = document.createElement("option");
-      opt.value = gen;
-      opt.textContent = `Gen ${gen}`;
-      selGen.appendChild(opt);
-    }
+  const genActivo = selGen.value;
+  while (selGen.options.length > 1) selGen.remove(1);
+  for (const { gen } of GEN_RANGES) {
+    const opt = document.createElement("option");
+    opt.value = gen;
+    opt.textContent = t("gen_label", gen);
+    selGen.appendChild(opt);
   }
+  selGen.value = genActivo;
+
   const selTipo = document.getElementById("pokedex-tipo");
-  if (selTipo.options.length <= 1) {
-    const tiposUsados = new Set();
-    // "none" es el relleno que usa PvPoke para el 2do tipo de especies de un solo tipo -- no es un tipo real.
-    dexOrdenados.forEach(e => e.tipos.forEach(t => { if (t !== "none") tiposUsados.add(t); }));
-    [...tiposUsados].sort((a, b) => (TIPO_LABEL[a] || a).localeCompare(TIPO_LABEL[b] || b)).forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t;
-      opt.textContent = TIPO_LABEL[t] || t;
-      selTipo.appendChild(opt);
-    });
-  }
+  const tipoActivo = selTipo.value;
+  while (selTipo.options.length > 1) selTipo.remove(1);
+  const tiposUsados = new Set();
+  // "none" es el relleno que usa PvPoke para el 2do tipo de especies de un solo tipo -- no es un tipo real.
+  dexOrdenados.forEach(e => e.tipos.forEach(tp => { if (tp !== "none") tiposUsados.add(tp); }));
+  [...tiposUsados].sort((a, b) => (TIPO_LABEL[a] || a).localeCompare(TIPO_LABEL[b] || b)).forEach(tp => {
+    const opt = document.createElement("option");
+    opt.value = tp;
+    opt.textContent = TIPO_LABEL[tp] || tp;
+    selTipo.appendChild(opt);
+  });
+  selTipo.value = tipoActivo;
 }
 
 function tieneDex(dex) {
@@ -1206,29 +1666,31 @@ const TYPE_TRAITS = {
 const TIPOS_BOSS_ORDEN = ["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison",
   "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy"];
 
-// Mismos temas/frases del recluta del Team GO Rocket que la guía personal --
+// Mismos temas del recluta del Team GO Rocket que la guía personal --
 // "tipo: null" son los temas sin tipo elemental fijo (generalistas/señuelo).
+// La frase real del recluta vive en I18N[idioma].rocket_frases (mismo índice
+// que esta lista) para que salga traducida -- ver renderRocketPublico().
 const ROCKET_TEMAS = [
-  { tipo: "normal", frase: `"Normal does not mean weak."`, tipicos: "Teddiursa/Hoothoot/Porygon → ... → Ursaring/Swellow/Kangaskhan" },
-  { tipo: "fire", frase: `"¿Sabes qué tan caliente...?" (Fuego)`, tipicos: "Litwick/Ponyta/Torchic → ... → Darmanitan/Delphox/Magmortar" },
-  { tipo: "water", frase: `"Estas aguas son traicioneras" (Agua)`, tipicos: "Mudkip/Tentacool/Krabby → ... → Walrein/Greninja/Tentacruel" },
-  { tipo: "electric", frase: `"Prepárate para electrocutarte" (Eléctrico)`, tipicos: "Voltorb/Shinx/Helioptile → ... → Luxray/Ampharos/Galvantula" },
-  { tipo: "grass", frase: `"No te enredes con nosotros" (Planta)`, tipicos: "Phantump/Treecko/Tangela → ... → Chesnaught/Trevenant/Cradily" },
-  { tipo: "ice", frase: `"Vas a quedar congelado" (Hielo)`, tipicos: "Seel/Delibird/Spheal → ... → Aurorus/Froslass/Glalie" },
-  { tipo: "fighting", frase: `"Este físico no es solo decoración" (Lucha)`, tipicos: "Timburr/Mankey/Machop → ... → Conkeldurr/Annihilape/Infernape" },
-  { tipo: "poison", frase: `"Enroscados y listos para atacar" (Veneno)`, tipicos: "Oddish/Zubat/Qwilfish → ... → Weezing/Toxicroak/Amoonguss" },
-  { tipo: "ground", frase: `"Serás derrotado hasta el suelo" (Tierra)`, tipicos: "Rhyhorn/Gligar/Trapinch → ... → Golurk/Hippowdon/Flygon" },
-  { tipo: "flying", frase: `"Batalla contra mis Pokémon Volador" (Volador)`, tipicos: "Taillow/Rookidee/Swablu → ... → Dragonite/Toucannon/Swanna" },
-  { tipo: "psychic", frase: `"¿Temes a los psíquicos?" (Psíquico)`, tipicos: "Wobbuffet/Ralts/Drowzee → ... → Gallade/Malamar/Reuniclus" },
-  { tipo: "bug", frase: `"¡Ve, mi súper Pokémon Bicho!" (Bicho)`, tipicos: "Venonat/Weedle/Grubbin → ... → Scizor/Scolipede/Vikavolt" },
-  { tipo: "rock", frase: `"A rodar" (Roca)`, tipicos: "Onix/Kabuto/Cranidos → ... → Tyrantrum/Golem/Aurorus" },
-  { tipo: "ghost", frase: `"Ke...ke...ke..." (Fantasma)`, tipicos: "Duskull/Gastly/Yamask → ... → Gengar/Froslass/Cofagrigus" },
-  { tipo: "dragon", frase: `"¡ROAR!" (Dragón)`, tipicos: "Noibat/Deino/Dratini → ... → Dragonite/Garchomp/Salamence" },
-  { tipo: "dark", frase: `"Donde hay luz, hay sombra" (Siniestro)`, tipicos: "Carvanha/Poochyena/Rattata Alola → ... → Liepard/Hydreigon" },
-  { tipo: "steel", frase: `"No eres rival para mi voluntad de hierro" (Acero)`, tipicos: "Sandshrew Alola/Aron/Beldum → ... → Aggron/Sandslash Alola/Probopass" },
-  { tipo: "fairy", frase: `"Mira mis Pokémon lindos" (Hada)`, tipicos: "Ralts/Snubbull/Vulpix Alola → ... → Ninetales Alola/Weezing Galar/Granbull" },
-  { tipo: null, frase: `"Ganar es para ganadores" (iniciales/Snorlax/Lapras)`, tipicos: "Bulbasaur-Venusaur / Charmander-Charizard / Squirtle-Blastoise / Snorlax / Gyarados / Dragonite" },
-  { tipo: null, frase: `"Fooled ya, twerp" (señuelo)`, tipicos: "Bellsprout/Raticate/Weepinbell/Snorlax" },
+  { tipo: "normal", tipicos: "Teddiursa/Hoothoot/Porygon → ... → Ursaring/Swellow/Kangaskhan" },
+  { tipo: "fire", tipicos: "Litwick/Ponyta/Torchic → ... → Darmanitan/Delphox/Magmortar" },
+  { tipo: "water", tipicos: "Mudkip/Tentacool/Krabby → ... → Walrein/Greninja/Tentacruel" },
+  { tipo: "electric", tipicos: "Voltorb/Shinx/Helioptile → ... → Luxray/Ampharos/Galvantula" },
+  { tipo: "grass", tipicos: "Phantump/Treecko/Tangela → ... → Chesnaught/Trevenant/Cradily" },
+  { tipo: "ice", tipicos: "Seel/Delibird/Spheal → ... → Aurorus/Froslass/Glalie" },
+  { tipo: "fighting", tipicos: "Timburr/Mankey/Machop → ... → Conkeldurr/Annihilape/Infernape" },
+  { tipo: "poison", tipicos: "Oddish/Zubat/Qwilfish → ... → Weezing/Toxicroak/Amoonguss" },
+  { tipo: "ground", tipicos: "Rhyhorn/Gligar/Trapinch → ... → Golurk/Hippowdon/Flygon" },
+  { tipo: "flying", tipicos: "Taillow/Rookidee/Swablu → ... → Dragonite/Toucannon/Swanna" },
+  { tipo: "psychic", tipicos: "Wobbuffet/Ralts/Drowzee → ... → Gallade/Malamar/Reuniclus" },
+  { tipo: "bug", tipicos: "Venonat/Weedle/Grubbin → ... → Scizor/Scolipede/Vikavolt" },
+  { tipo: "rock", tipicos: "Onix/Kabuto/Cranidos → ... → Tyrantrum/Golem/Aurorus" },
+  { tipo: "ghost", tipicos: "Duskull/Gastly/Yamask → ... → Gengar/Froslass/Cofagrigus" },
+  { tipo: "dragon", tipicos: "Noibat/Deino/Dratini → ... → Dragonite/Garchomp/Salamence" },
+  { tipo: "dark", tipicos: "Carvanha/Poochyena/Rattata Alola → ... → Liepard/Hydreigon" },
+  { tipo: "steel", tipicos: "Sandshrew Alola/Aron/Beldum → ... → Aggron/Sandslash Alola/Probopass" },
+  { tipo: "fairy", tipicos: "Ralts/Snubbull/Vulpix Alola → ... → Ninetales Alola/Weezing Galar/Granbull" },
+  { tipo: null, temaExtra: "tema_iniciales", tipicos: "Bulbasaur-Venusaur / Charmander-Charizard / Squirtle-Blastoise / Snorlax / Gyarados / Dragonite" },
+  { tipo: null, temaExtra: "tema_senuelo", tipicos: "Bellsprout/Raticate/Weepinbell/Snorlax" },
 ];
 
 // Entre lo que el visitante marcó como suyo, busca el de mayor Ataque base que le
@@ -1253,19 +1715,17 @@ function chipMarcado(entrada) {
   return `<span class="poke-mini"><img class="poke-mini-icon" src="${SPRITE_URL(entrada.dex)}" alt="" loading="lazy">${entrada.speciesName}</span>`;
 }
 
-const MSG_SIN_MARCAR = `Todavía no marcaste ningún Pokémon en tu Pokédex -- anda a la pestaña 📖 Pokédex y marca los que ya tienes.`;
-
 function renderIncursionesPublico() {
   const tbody = document.querySelector("#tabla-incursiones-publico tbody");
   if (!tbody) return;
   if (!marcados.size) {
-    tbody.innerHTML = `<tr><td colspan="2">${MSG_SIN_MARCAR}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="2">${t("msg_sin_marcar")}</td></tr>`;
     return;
   }
   tbody.innerHTML = TIPOS_BOSS_ORDEN.map(tipo => {
     const mejor = mejorAtacanteMarcado(tipo);
     const celda = mejor
-      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">(menos peor -- sin nada dedicado a ${TIPO_LABEL[tipo]})</span>`)
+      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">${t("menos_peor_tipo", TIPO_LABEL[tipo])}</span>`)
       : "--";
     return `<tr><td>${TIPO_LABEL[tipo]}</td><td>${celda}</td></tr>`;
   }).join("");
@@ -1275,15 +1735,18 @@ function renderRocketPublico() {
   const tbody = document.querySelector("#tabla-rocket-publico tbody");
   if (!tbody) return;
   if (!marcados.size) {
-    tbody.innerHTML = `<tr><td colspan="3">${MSG_SIN_MARCAR}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3">${t("msg_sin_marcar")}</td></tr>`;
     return;
   }
-  tbody.innerHTML = ROCKET_TEMAS.map(tema => {
+  const frases = I18N[idioma].rocket_frases || I18N.es_LA.rocket_frases;
+  tbody.innerHTML = ROCKET_TEMAS.map((tema, i) => {
     const mejor = mejorAtacanteMarcado(tema.tipo);
     const celda = mejor
-      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">(menos peor)</span>`)
+      ? chipMarcado(mejor.entrada) + (mejor.ideal ? "" : ` <span style="color:var(--texto-tenue); font-size:0.75rem;">${t("menos_peor")}</span>`)
       : "--";
-    return `<tr><td>${tema.frase}</td><td>${tema.tipicos}</td><td>${celda}</td></tr>`;
+    const temaTxt = tema.tipo ? ` (${TIPO_LABEL[tema.tipo]})` : ` (${t(tema.temaExtra)})`;
+    const frase = `"${frases[i]}"${temaTxt}`;
+    return `<tr><td>${frase}</td><td>${tema.tipicos}</td><td>${celda}</td></tr>`;
   }).join("");
 }
 
@@ -1312,7 +1775,7 @@ function renderPokedex() {
     const clase = tiene ? "tenido" : "fantasma";
     const imgHtml = e.released
       ? `<img data-src="${SPRITE_URL(e.dex)}" alt="${e.speciesName}" onerror="this.style.opacity=0.15">`
-      : `<span class="px-no-lanzado" title="Todavía no existe en Pokémon GO">?</span>`;
+      : `<span class="px-no-lanzado" title="${t("no_lanzado_title")}">?</span>`;
     return `<div class="pokedex-celda ${clase}" data-dex="${e.dex}" role="button" tabindex="0">
       ${imgHtml}
       <span class="px-dex">#${e.dex}</span>
@@ -1331,8 +1794,8 @@ function renderPokedex() {
   });
 
   const hayFiltroTexto = !!(filtro || genFiltro || tipoFiltro);
-  resumen.innerHTML = `<span class="num">${cuantosTenidos}</span> / ${totalConFiltro} marcados` + (hayFiltroTexto ? " (con el filtro actual)" : "")
-    + (soloObtenidos ? ` -- mostrando solo los marcados (${lista.length})` : "") + `. Haz clic en un Pokémon para marcarlo/desmarcarlo.`;
+  resumen.innerHTML = t("marcados_resumen", `<span class="num">${cuantosTenidos}</span>`, totalConFiltro,
+    hayFiltroTexto ? t("con_filtro_actual") : "", soloObtenidos ? t("mostrando_solo_marcados", lista.length) : "");
   renderResumenGens();
   renderIncursionesPublico();
   renderRocketPublico();
@@ -1349,7 +1812,7 @@ function renderResumenGens() {
     const completa = cuantosTenidos === total && total > 0;
     const activa = String(gen) === genActivo;
     return `<span class="pokedex-gen-badge${completa ? " completa" : ""}${activa ? " activa" : ""}" data-gen="${gen}">`
-      + `Gen ${gen}: ${cuantosTenidos}/${total}</span>`;
+      + `${t("gen_label", gen)}: ${cuantosTenidos}/${total}</span>`;
   }).join("");
   cont.querySelectorAll(".pokedex-gen-badge").forEach(badge => {
     badge.addEventListener("click", () => {
@@ -1401,10 +1864,58 @@ async function iniciar() {
   } catch (e) {
     bannerCarga.classList.add("error");
     document.querySelector(".spinner").style.display = "none";
-    textoCarga.textContent = `No se pudo cargar PvPoke (¿sin internet?): ${e.message}. Revisa tu conexión y recarga la página.`;
+    textoCarga.textContent = t("error_carga", e.message);
   }
 }
 
+function aplicarIdiomaEstatico() {
+  document.title = t("header_titulo");
+  document.getElementById("titulo-app").textContent = t("header_titulo");
+  document.getElementById("sub-app").textContent = t("header_sub");
+  const bannerTxt = document.getElementById("texto-carga");
+  if (bannerTxt && !bannerCarga.classList.contains("oculto") && !bannerCarga.classList.contains("error")) {
+    bannerTxt.textContent = t("cargando_inicial");
+  }
+  document.querySelector('[data-tab="evaluador"]').textContent = t("tab_evaluador");
+  document.querySelector('[data-tab="pokedex"]').textContent = t("tab_pokedex");
+  document.querySelector('[data-tab="guias"]').textContent = t("tab_guias");
+  document.getElementById("btn-agregar").textContent = t("btn_agregar");
+  document.getElementById("btn-limpiar").textContent = t("btn_vaciar");
+  document.getElementById("estado-guardado").textContent = t("guardado");
+  document.getElementById("ayuda-texto").innerHTML = t("ayuda_html");
+  document.getElementById("btn-reiniciar-pokedex").textContent = t("pokedex_reiniciar");
+  document.getElementById("pokedex-buscar").placeholder = t("pokedex_buscar_placeholder");
+  document.getElementById("pokedex-gen").options[0].textContent = t("pokedex_todas_gen");
+  document.getElementById("pokedex-tipo").options[0].textContent = t("pokedex_todos_tipos");
+  document.getElementById("label-ocultar-no-tengo").textContent = t("pokedex_ocultar_no_tengo");
+  document.querySelector('[data-subtab="incursiones"]').textContent = t("subtab_incursiones");
+  document.querySelector('[data-subtab="rocket"]').textContent = t("subtab_rocket");
+  document.getElementById("guia-incursiones-nota").innerHTML = t("guia_incursiones_nota");
+  document.getElementById("guia-rocket-nota").innerHTML = t("guia_rocket_nota");
+  document.getElementById("th-tipo-jefe").textContent = t("th_tipo_jefe");
+  document.getElementById("th-mejor-atacante").textContent = t("th_mejor_atacante");
+  document.getElementById("th-frase-tema").textContent = t("th_frase_tema");
+  document.getElementById("th-pokemon-tipicos").textContent = t("th_pokemon_tipicos");
+  document.getElementById("th-mejor-opcion").textContent = t("th_mejor_opcion");
+  document.querySelectorAll(".selector-idioma button").forEach(b => {
+    b.classList.toggle("activo", b.dataset.idioma === idioma);
+  });
+}
+
+function cambiarIdioma(nuevo) {
+  idioma = nuevo;
+  localStorage.setItem("pokealert_idioma_v1", idioma);
+  aplicarIdiomaEstatico();
+  poblarSelectsPokedex(); // no re-crea si ya hay opciones -- las de gen/tipo dinámicas quedan del idioma anterior hasta reiniciar
+  render();
+  if (dexOrdenados.length) { renderPokedex(); }
+}
+
+document.querySelectorAll(".selector-idioma button").forEach(btn => {
+  btn.addEventListener("click", () => cambiarIdioma(btn.dataset.idioma));
+});
+
+aplicarIdiomaEstatico();
 iniciar();
 </script>
 </body>
