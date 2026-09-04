@@ -435,6 +435,12 @@ const I18N = {
       + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan en ese cálculo); `
       + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`,
     shadow_no_elegible: " (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- revisa si de verdad es shadow.)",
+    purificado_ya_apto: "💜 Ya es apto tal cual (Shadow) -- no hace falta purificar. Purificar también sube el Ataque, lo que en ligas con tope suele alejarte del IV ideal en vez de acercarte.",
+    purificado_si_apto: (atkPur, defPur, hpPur, liga, rank, total, globalRank, globalTotal) =>
+      `💜 Purificado (IV pasaría a ${atkPur}/${defPur}/${hpPur}) SÍ sería apto para ${liga} (#${rank}/${total} propio, Top ${globalRank ?? "?"}/${globalTotal} del meta) -- vale la pena purificarlo si lo quieres para PvP.`,
+    purificado_no_cambia: (atkPur, defPur, hpPur) =>
+      `💜 Purificado (IV pasaría a ${atkPur}/${defPur}/${hpPur}) tampoco sería apto para ninguna liga -- purificar no cambia el veredicto de PvP.`,
+    shadow_pve_nota: "⚔️ Para incursiones/gimnasio (PvE) el cálculo es al revés: ahí conviene DEJARLO Shadow -- el +20% Ataque le da más daño por golpe (lo único que importa atacando), aunque pierda -16.7% Defensa. Purifica solo si lo vas a usar para PvP, no para pegarle a jefes de incursión.",
     pc_nota: (cp, ligas) => `📈 Con PC ${cp} ya superaste el tope de: ${ligas} -- no se muestran para este ejemplar (no se puede bajar de nivel).`,
     mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
       `Su mejor resultado propio: ${especie}${evoTxt} en ${liga}: #${rank}/${total} propio (${percent}%) -- ${metaTxt}.`,
@@ -543,6 +549,12 @@ const I18N = {
       + `El PC y el rank de IV de su propia especie NO cambian (esos dos multiplicadores se cancelan exactamente en ese cálculo); `
       + `lo que sí cambia es el rank de meta de arriba (usa el ranking shadow real de PvPoke cuando existe) y que en PvE pega ~20% más fuerte.`,
     shadow_no_elegible: " (Ojo: esta especie no parece ser shadow-elegible según PvPoke -- comprueba si de verdad es shadow.)",
+    purificado_ya_apto: "💜 Ya es apto tal cual (Shadow) -- no hace falta purificarlo. Purificarlo también sube el Ataque, lo que en ligas con tope suele alejarte del IV ideal en vez de acercarte.",
+    purificado_si_apto: (atkPur, defPur, hpPur, liga, rank, total, globalRank, globalTotal) =>
+      `💜 Purificado (el IV pasaría a ${atkPur}/${defPur}/${hpPur}) SÍ sería apto para ${liga} (#${rank}/${total} propio, Top ${globalRank ?? "?"}/${globalTotal} del meta) -- merece la pena purificarlo si lo quieres para PvP.`,
+    purificado_no_cambia: (atkPur, defPur, hpPur) =>
+      `💜 Purificado (el IV pasaría a ${atkPur}/${defPur}/${hpPur}) tampoco sería apto para ninguna liga -- purificarlo no cambia el veredicto de PvP.`,
+    shadow_pve_nota: "⚔️ Para incursiones/gimnasio (PvE) el cálculo es al revés: ahí conviene DEJARLO Shadow -- el +20% de Ataque le da más daño por golpe (lo único que importa al atacar), aunque pierda un -16,7% de Defensa. Purifícalo solo si lo vas a usar para PvP, no para pegarle a jefes de incursión.",
     pc_nota: (cp, ligas) => `📈 Con PC ${cp} ya has superado el tope de: ${ligas} -- no se muestran para este ejemplar (no se puede bajar de nivel).`,
     mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
       `Su mejor resultado propio: ${especie}${evoTxt} en ${liga}: #${rank}/${total} propio (${percent}%) -- ${metaTxt}.`,
@@ -650,6 +662,12 @@ const I18N = {
       + `Its own CP and IV rank do NOT change (those two multipliers cancel out exactly in that calculation); `
       + `what DOES change is the meta rank above (uses PvPoke's real shadow ranking when it exists) and it hits ~20% harder in PvE.`,
     shadow_no_elegible: " (Heads up: this species doesn't look shadow-eligible per PvPoke -- double check it's really Shadow.)",
+    purificado_ya_apto: "💜 It's already viable as-is (Shadow) -- no need to purify. Purifying also raises Attack, which in capped leagues usually pulls you away from the ideal IV spread instead of closer.",
+    purificado_si_apto: (atkPur, defPur, hpPur, liga, rank, total, globalRank, globalTotal) =>
+      `💜 Purified (IVs would become ${atkPur}/${defPur}/${hpPur}) WOULD be viable for ${liga} (#${rank}/${total} own rank, Top ${globalRank ?? "?"}/${globalTotal} in meta) -- worth purifying if you want it for PvP.`,
+    purificado_no_cambia: (atkPur, defPur, hpPur) =>
+      `💜 Purified (IVs would become ${atkPur}/${defPur}/${hpPur}) still wouldn't be viable for any league -- purifying doesn't change the PvP verdict.`,
+    shadow_pve_nota: "⚔️ For raids/gyms (PvE) it's the opposite: KEEP it Shadow -- the +20% Attack hits harder per attack (the only thing that matters when attacking), even with the -16.7% Defense loss. Only purify it if you're going to use it for PvP, not for hitting raid bosses.",
     pc_nota: (cp, ligas) => `📈 At CP ${cp} you've already gone over the cap for: ${ligas} -- not shown for this Pokémon (it can't lose a level).`,
     mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
       `Its best own result: ${especie}${evoTxt} in ${liga}: #${rank}/${total} own rank (${percent}%) -- ${metaTxt}.`,
@@ -757,6 +775,12 @@ const I18N = {
       + `O CP e o rank de IV da própria espécie NÃO mudam (esses dois multiplicadores se cancelam exatamente nesse cálculo); `
       + `o que muda é o rank de meta acima (usa o ranking shadow real do PvPoke quando existe) e que no PvE bate ~20% mais forte.`,
     shadow_no_elegible: " (Atenção: essa espécie não parece ser shadow-elegível segundo o PvPoke -- confira se é realmente shadow.)",
+    purificado_ya_apto: "💜 Já é apto assim como está (Shadow) -- não precisa purificar. Purificar também aumenta o Ataque, o que em ligas com teto costuma te afastar do IV ideal em vez de te aproximar.",
+    purificado_si_apto: (atkPur, defPur, hpPur, liga, rank, total, globalRank, globalTotal) =>
+      `💜 Purificado (o IV passaria a ${atkPur}/${defPur}/${hpPur}) SIM seria apto para ${liga} (#${rank}/${total} próprio, Top ${globalRank ?? "?"}/${globalTotal} do meta) -- vale a pena purificar se você quiser usá-lo em PvP.`,
+    purificado_no_cambia: (atkPur, defPur, hpPur) =>
+      `💜 Purificado (o IV passaria a ${atkPur}/${defPur}/${hpPur}) também não seria apto para nenhuma liga -- purificar não muda o veredito de PvP.`,
+    shadow_pve_nota: "⚔️ Para incursões/ginásio (PvE) o cálculo é o oposto: aí vale a pena DEIXAR Shadow -- o +20% de Ataque bate mais forte por golpe (o único que importa atacando), mesmo perdendo -16,7% de Defesa. Purifique só se for usar em PvP, não para bater em chefes de incursão.",
     pc_nota: (cp, ligas) => `📈 Com CP ${cp} você já ultrapassou o teto de: ${ligas} -- não são mostradas para este exemplar (não é possível baixar de nível).`,
     mejor_resultado_propio: (especie, evoTxt, liga, rank, total, percent, metaTxt) =>
       `Seu melhor resultado próprio: ${especie}${evoTxt} em ${liga}: #${rank}/${total} próprio (${percent}%) -- ${metaTxt}.`,
@@ -1171,6 +1195,32 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
   const { topMeta, mejorPropio } = evaluarPvPCompleto(especieNombre, atkIv, defIv, hpIv, esFavorito, esShadow, cpActual);
   const apto = !!(topMeta && topMeta.length);
 
+  // Purificar un Shadow sube cada IV +2 (tope 15) -- solo tiene sentido
+  // avisar cuando purificar CAMBIARÍA el veredicto de PvP (de no apto a
+  // apto); si ya es apto tal cual, purificar no aporta ahí. Siempre se
+  // agrega también el otro lado de la moneda: para PvE (incursiones/
+  // gimnasio) conviene justo lo contrario, dejarlo Shadow por el bono de
+  // Ataque.
+  let notaPurificado = "";
+  if (esShadow) {
+    const notaPve = t("shadow_pve_nota");
+    if (apto) {
+      notaPurificado = t("purificado_ya_apto") + `\n${notaPve}`;
+    } else {
+      const atkPur = Math.min(atkIv + 2, 15);
+      const defPur = Math.min(defIv + 2, 15);
+      const hpPur = Math.min(hpIv + 2, 15);
+      const { topMeta: topMetaPur } = evaluarPvPCompleto(especieNombre, atkPur, defPur, hpPur, esFavorito, false, cpActual);
+      if (topMetaPur && topMetaPur.length) {
+        const mejorPur = topMetaPur[0];
+        const ligaPur = LEAGUE_LABEL[mejorPur.league] || mejorPur.league;
+        notaPurificado = t("purificado_si_apto", atkPur, defPur, hpPur, ligaPur, mejorPur.rank, mejorPur.total, mejorPur.globalRank, mejorPur.globalTotal) + `\n${notaPve}`;
+      } else {
+        notaPurificado = t("purificado_no_cambia", atkPur, defPur, hpPur) + `\n${notaPve}`;
+      }
+    }
+  }
+
   let notaPC = "";
   if (cpActual && cpActual > 0) {
     const ligasSuperadas = [...new Set(IV_POTENTIAL_LEAGUES.filter(l => LEAGUE_CP_CAPS[l] < cpActual).map(l => LEAGUE_LABEL[l] || l))];
@@ -1194,6 +1244,7 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
     });
     if (topMeta.length > 4) lineas.push(t("mas_ligas", topMeta.length - 4));
     if (notaShadow) lineas.push(notaShadow);
+    if (notaPurificado) lineas.push(notaPurificado);
     if (notaPC) lineas.push(notaPC);
     detalle = lineas.join("\n");
   } else {
@@ -1212,6 +1263,7 @@ function resolverEstadoVeredicto(especieNombre, atkIv, defIv, hpIv, esFavorito, 
     }
     if (notaPC) detalle += `\n${notaPC}`;
     if (notaShadow) detalle += `\n${notaShadow}`;
+    if (notaPurificado) detalle += `\n${notaPurificado}`;
   }
 
   const scoreComparacion = mejorPropio
