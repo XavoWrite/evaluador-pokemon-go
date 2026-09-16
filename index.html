@@ -358,7 +358,8 @@ const I18N = {
   es_LA: {
     liga_label: { little: "Copa Chica", great: "Liga Súper", ultra: "Liga Ultra", master: "Liga Master",
       weather: "Copa del Clima", evolution: "Copa Evolución", catch: "Copa Captura",
-      scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Master Mega" },
+      scroll: "Copa Pergamino", willpower: "Copa Voluntad", retro: "Copa Retro",
+      premier: "Copa Premier", mega: "Liga Master Mega" },
     tipo_label: { normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
       ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
       psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
@@ -471,7 +472,8 @@ const I18N = {
   es_ES: {
     liga_label: { little: "Copa Chica", great: "Liga Súper", ultra: "Liga Ultra", master: "Liga Máster",
       weather: "Copa del Clima", evolution: "Copa Evolución", catch: "Copa Captura",
-      scroll: "Copa Pergamino", premier: "Copa Premier", mega: "Liga Máster Mega" },
+      scroll: "Copa Pergamino", willpower: "Copa Voluntad", retro: "Copa Retro",
+      premier: "Copa Premier", mega: "Liga Máster Mega" },
     tipo_label: { normal: "Normal", fire: "Fuego", water: "Agua", electric: "Eléctrico", grass: "Planta",
       ice: "Hielo", fighting: "Lucha", poison: "Veneno", ground: "Tierra", flying: "Volador",
       psychic: "Psíquico", bug: "Bicho", rock: "Roca", ghost: "Fantasma", dragon: "Dragón",
@@ -585,7 +587,8 @@ const I18N = {
   en: {
     liga_label: { little: "Little Cup", great: "Great League", ultra: "Ultra League", master: "Master League",
       weather: "Weather Cup", evolution: "Evolution Cup", catch: "Catch Cup",
-      scroll: "Scroll Cup", premier: "Premier Cup", mega: "Mega Master League" },
+      scroll: "Scroll Cup", willpower: "Willpower Cup", retro: "Retro Cup",
+      premier: "Premier Cup", mega: "Mega Master League" },
     tipo_label: { normal: "Normal", fire: "Fire", water: "Water", electric: "Electric", grass: "Grass",
       ice: "Ice", fighting: "Fighting", poison: "Poison", ground: "Ground", flying: "Flying",
       psychic: "Psychic", bug: "Bug", rock: "Rock", ghost: "Ghost", dragon: "Dragon",
@@ -698,7 +701,8 @@ const I18N = {
   pt: {
     liga_label: { little: "Copa Mirim", great: "Liga Grande", ultra: "Liga Ultra", master: "Liga Mestra",
       weather: "Copa do Clima", evolution: "Copa Evolução", catch: "Copa Captura",
-      scroll: "Copa Pergaminho", premier: "Copa Premier", mega: "Liga Mestra Mega" },
+      scroll: "Copa Pergaminho", willpower: "Copa Força de Vontade", retro: "Copa Retrô",
+      premier: "Copa Premier", mega: "Liga Mestra Mega" },
     tipo_label: { normal: "Normal", fire: "Fogo", water: "Água", electric: "Elétrico", grass: "Planta",
       ice: "Gelo", fighting: "Lutador", poison: "Venenoso", ground: "Terrestre", flying: "Voador",
       psychic: "Psíquico", bug: "Inseto", rock: "Pedra", ghost: "Fantasma", dragon: "Dragão",
@@ -818,23 +822,29 @@ const LEAGUE_URLS = {
   evolution: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/evolution/overall/rankings-1500.json",
   catch: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/catch/overall/rankings-1500.json",
   scroll: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/scroll/overall/rankings-1500.json",
+  // Reemplazan a weather/evolution/scroll esta temporada (Twilight Trails,
+  // agregadas 16 sep 2026) -- esas 3 ya no existen en el repo (404); se
+  // dejan arriba porque el try/catch de inicializarMotor() ya las omite
+  // sin romper el resto.
+  willpower: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/willpower/overall/rankings-1500.json",
+  retro: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/retro/overall/rankings-1500.json",
   premier: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/premier/overall/rankings-10000.json",
   mega: "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/rankings/mega/overall/rankings-10000.json",
 };
 const LEAGUE_CP_CAPS = {
   little: 500, great: 1500, ultra: 2500, master: 10000,
-  weather: 1500, evolution: 1500, catch: 1500, scroll: 1500, premier: 10000, mega: 10000,
+  weather: 1500, evolution: 1500, catch: 1500, scroll: 1500, willpower: 1500, retro: 1500, premier: 10000, mega: 10000,
 };
 // Proxy en vez de objeto fijo -- así LEAGUE_LABEL[liga] siempre lee la
 // traducción del idioma ACTIVO en el momento de usarse, sin tener que
 // tocar cada lugar donde ya se llama LEAGUE_LABEL[x].
 const LEAGUE_LABEL = new Proxy({}, { get: (_, liga) => (I18N[idioma].liga_label || {})[liga] });
-const IV_POTENTIAL_LEAGUES = ["little", "great", "ultra", "master", "weather", "evolution", "catch", "scroll", "premier", "mega"];
+const IV_POTENTIAL_LEAGUES = ["little", "great", "ultra", "master", "weather", "evolution", "catch", "scroll", "willpower", "retro", "premier", "mega"];
 const IV_POTENTIAL_TOP_N = 5;
 const IV_POTENTIAL_MAX_LEVEL = 50.0;
 const PVP_GLOBAL_TOP_N = {
   little: 15, great: 55, ultra: 40, master: 25,
-  weather: 30, evolution: 30, catch: 30, scroll: 30, premier: 20, mega: 20,
+  weather: 30, evolution: 30, catch: 30, scroll: 30, willpower: 30, retro: 30, premier: 20, mega: 20,
 };
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -903,10 +913,19 @@ async function inicializarMotor() {
   textoCarga.textContent = t("cargando_niveles");
   cpms = await cargarCpms();
 
+  // Si UNA copa cambia de nombre o desaparece del repo de PvPoke entre
+  // temporadas (pasa seguido con las copas temáticas rotativas), que falle
+  // su descarga no debe tumbar el evaluador entero -- se omite esa copa
+  // puntual (mismo criterio que get_rankings_safe() en pvpoke_rankings.py,
+  // el bot de Discord) y se sigue con el resto.
   for (const liga of IV_POTENTIAL_LEAGUES) {
     textoCarga.textContent = t("cargando_ranking", LEAGUE_LABEL[liga]);
-    const data = await fetchJsonCacheado(`pokealert_rankings_${liga}_v1`, LEAGUE_URLS[liga]);
-    rankingsPorLiga[liga] = [...data].sort((a, b) => (b.score || 0) - (a.score || 0));
+    try {
+      const data = await fetchJsonCacheado(`pokealert_rankings_${liga}_v1`, LEAGUE_URLS[liga]);
+      rankingsPorLiga[liga] = [...data].sort((a, b) => (b.score || 0) - (a.score || 0));
+    } catch (e) {
+      console.warn(`No se pudo cargar el ranking de ${LEAGUE_LABEL[liga]} (${liga}): ${e.message}. Se omite esa copa, el resto sigue funcionando.`);
+    }
   }
 
   const nombres = new Set();
